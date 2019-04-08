@@ -22,28 +22,24 @@ public class User {
         BufferedWriter bw = new BufferedWriter(new FileWriter("users.txt"));
         try(Scanner scnr = new Scanner(new File("users.txt"))) {
             while (scnr.hasNextLine()){
-                if(!(scnr.nextLine().split("#")[0] == userName))
-                    bw.append("\n" + userName);
+                if(!(scnr.nextLine().split("#")[0].equals(userName))) {
+                    bw.append("\n");
+                    bw.append(userName);
+                    bw.flush();
+                }
             }
-
         }
     }
 
     public void test() throws Exception {
         ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
-        System.out.println(turnUsersToRoon(new User("Matt").userName));
-
-        rooms.put("dubsOnly", new pubsub("dubsOnly"));
-
+        String roomName = turnUsersToRoon(new User("Matt").userName);
+        rooms.put(roomName, new pubsub(roomName));
         for (int i = 0; i < 5; i++)
-            rooms.get("dubsOnly").writeToPubsub("lolripyou");
-
-        executorService.submit(rooms.get("dubsOnly"));
-
+            rooms.get(roomName).writeToPubsub("lolripyou");
+        executorService.submit(rooms.get(roomName));
         for (int i = 0; i < 5; i++)
-            rooms.get("dubsOnly").writeToPubsub("lol");
-
-
+            rooms.get(roomName).writeToPubsub("lol");
     }
 
     public String turnUsersToRoon(String name) {
