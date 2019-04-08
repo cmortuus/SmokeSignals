@@ -1,15 +1,12 @@
-import java.io.IOException;
-
 public class main {
 
+    //    TODO implament rsa signing and encryption and aes encryption for the messages sent back and forth
     public static void main(String[] args) {
         try {
-            User caleb = new User("Caleb");
-            caleb.test();
-        } catch (IOException e) {
-            e.printStackTrace();
+            User Caleb = new User("CalebMorton");
+            Caleb.createRoom("MattBennet");
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e);
         }
     }
 }
