@@ -4,6 +4,7 @@ import io.ipfs.multiaddr.MultiAddress;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -12,6 +13,8 @@ public class pubsub implements Runnable {
     String roomName;
     IPFS ipfs;
 
+
+    //    TODO implament rsa signing and encryption and aes encryption for the messages sent back and forth
     public pubsub(String roomName) {
         try {
             this.roomName = roomName;
@@ -23,15 +26,25 @@ public class pubsub implements Runnable {
         }
     }
 
+
     /**
      * Threaded method that prints out the room name and then the data that follows
      */
     @Override
     public void run() {
         try {
-        System.out.println(ipfs.pubsub.peers());
-//            BufferedWriter bw = new BufferedWriter(new FileWriter(roomName + ipfs.pubsub.peers()));
-//            room.forEach(stringObjectMap -> System.out.println(stringObjectMap.values()));
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter("lol.txt"))) {
+                room.forEach(stringObjectMap -> {
+                    try {
+                        String s = stringObjectMap.values().toString().split(",")[1].trim();
+                        byte[] c = Base64.getDecoder().decode(s);
+                        bw.write(new String(c) + "\n");
+                        bw.flush();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+            }
         } catch (IOException e) {
             System.out.println(e);
         }
