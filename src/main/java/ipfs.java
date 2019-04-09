@@ -14,8 +14,6 @@ public class ipfs {
         ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
     }
 
-
-
     protected Multihash addFile(String filename) throws IOException {
         NamedStreamable.FileWrapper file = new NamedStreamable.FileWrapper(new File(filename));
         return ipfs.add(file).get(0).hash;
