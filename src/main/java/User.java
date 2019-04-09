@@ -76,7 +76,7 @@ public class User {
 //            Add new user to the arraylist in pubsub and then send that to
             rooms.get(roomName).users.add(other);
 //            Test the room
-            rooms.get(roomName).writeToPubsub("lol rip you");
+            rooms.get(roomName).writeToPubsub("lol");
             executorService.submit(rooms.get(roomName));
             rooms.get(roomName).writeToPubsub("lol");
         } catch (Exception e) {
@@ -142,8 +142,7 @@ public class User {
                                 sendRSAKeys(roomName);
                         }
                     }
-                } catch (
-                        Exception e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }

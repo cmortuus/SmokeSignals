@@ -4,6 +4,7 @@ import io.ipfs.multiaddr.MultiAddress;
 import io.ipfs.multihash.Multihash;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -12,6 +13,14 @@ public class ipfs {
 
     public ipfs() {
         ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
+    }
+
+
+    protected String addText(String text) throws IOException {
+        FileWriter fw = new FileWriter("temp.txt");
+        fw.write(text);
+        NamedStreamable.FileWrapper file = new NamedStreamable.FileWrapper(new File("temp.txt"));
+        return ipfs.add(file).get(0).hash.toString();
     }
 
     protected Multihash addFile(String filename) throws IOException {
