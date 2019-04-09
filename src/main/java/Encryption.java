@@ -6,14 +6,14 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.*;
 
 public class Encryption {
-
-    //    TODO dont store these in plain text
+//    TODO dont store these in plain text
 //    TODO send the aes key once it has been encrypted with rsa and then test reading and writing from the room.
     private static Cipher cipher;
     static int RSA_KEY_LENGTH = 4096;
     static String ALGORITHM_NAME = "RSA";
 
 
+//    Defines the ciphar var with a try catch
     static {
         try {
             cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
@@ -22,11 +22,21 @@ public class Encryption {
         }
     }
 
+    /**
+     * generate rsa keys
+     * @return
+     * @throws NoSuchAlgorithmException
+     */
     public static KeyPair generateKeys() throws NoSuchAlgorithmException {
         KeyPairGenerator rsaKeyGen = KeyPairGenerator.getInstance(ALGORITHM_NAME);
         rsaKeyGen.initialize(RSA_KEY_LENGTH);
         return rsaKeyGen.generateKeyPair();
     }
+
+    /**
+     * creates aes keys
+     * @return
+     */
     public static SecretKey generateAESkey() {
         try {
             KeyGenerator generator = KeyGenerator.getInstance("AES");
@@ -38,7 +48,12 @@ public class Encryption {
         return null;
     }
 
-
+    /**
+     * Encrypt the aes key with rsa
+     * @param publicKey
+     * @param secretKey
+     * @return
+     */
     public static byte[] encryptAESwithRSA(PublicKey publicKey, SecretKey secretKey) {
         if(cipher == null)
             throw new IllegalStateException("Cipher cannot be null");
@@ -51,7 +66,12 @@ public class Encryption {
         return null;
     }
 
-
+    /**
+     * Encrypt message with aes
+     * @param plainText
+     * @param secretKey
+     * @return
+     */
     public static byte[] encryptAES(String plainText, SecretKey secretKey) {
         if(cipher == null)
             throw new IllegalStateException("Cipher cannot be null");
