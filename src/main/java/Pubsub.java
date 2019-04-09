@@ -1,6 +1,7 @@
 import io.ipfs.api.IPFS;
 import io.ipfs.multiaddr.MultiAddress;
 
+import javax.crypto.SecretKey;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -20,6 +21,7 @@ public class Pubsub implements Runnable {
     ArrayList<User> users;
     PrivateKey privateKey;
     PublicKey publicKey;
+    SecretKey secretKey;
 
     //    TODO implament rsa signing and encryption and aes encryption for the messages sent back and forth
 
@@ -36,9 +38,10 @@ public class Pubsub implements Runnable {
             room = ipfs.pubsub.sub(roomName);
 
 //            TODO save the keys to file so that they can be sent
-            KeyPair keypair = Encrypt.generateKeys();
+            KeyPair keypair = Encryption.generateKeys();
             publicKey = keypair.getPublic();
             privateKey = keypair.getPrivate();
+            secretKey = Encryption.generateAESkey();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -77,9 +80,28 @@ public class Pubsub implements Runnable {
         }
     }
 
+    public void sendAESkeyEnc() {
+        try {
+            writeToPubsub(new String(Encryption.encryptAESwithRSA(publicKey, secretKey)));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void encryptMessage(String message, SecretKey secretKey) {
+        String s = new String(Encryption.encryptAES(message, secretKey));
+        if (s != null)
+            writeToPubsub(s);
+    }
+
+
     //    I dont know exactly what this is returning, but I think it might be important
-    public Object writeToPubsub(String phrase) throws Exception {
-        System.out.println(RSA.rsaDecrypt(RSA.rsaEncrypt("hi", publicKey).getBytes(), privateKey));
-        return phrase.length() <= 46 ? ipfs.pubsub.pub(roomName, RSA.rsaEncrypt(phrase, publicKey)) : RSA.rsaEncrypt(new ipfs().addText(phrase), privateKey);
+    public Object writeToPubsub(String phrase) {
+        try {
+            return ipfs.pubsub.pub(roomName, phrase);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

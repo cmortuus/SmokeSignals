@@ -1,5 +1,6 @@
 import io.ipfs.api.IPFS;
 import io.ipfs.multiaddr.MultiAddress;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -15,6 +16,7 @@ public class User {
     String userName;
     HashMap<String, Pubsub> rooms;
 
+    //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventaully change this from one large file to one file that is for your username or aliasis
     public User(String user) throws IOException {
         rooms = new HashMap<>();
@@ -150,9 +152,8 @@ public class User {
         t.start();
     }
 
-    //    TODO send the rsa keys
     public void sendRSAKeys(String roomName) {
-
+        rooms.get(roomName).sendAESkeyEnc();
     }
 
 }

@@ -1,62 +1,93 @@
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.*;
 
 public class Encryption {
 
-//    TODO dont store these in plain text
+    //    TODO dont store these in plain text
 //    TODO send the aes key once it has been encrypted with rsa and then test reading and writing from the room.
-    SecretKey secKey;
-    PrivateKey privateKey;
-    PublicKey publicKey;
-    Cipher cipher;
+    private static Cipher cipher;
+    static int RSA_KEY_LENGTH = 4096;
+    static String ALGORITHM_NAME = "RSA";
 
-    public Encryption() {
+
+    static {
+        try {
+            cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static KeyPair generateKeys() throws NoSuchAlgorithmException {
+        KeyPairGenerator rsaKeyGen = KeyPairGenerator.getInstance(ALGORITHM_NAME);
+        rsaKeyGen.initialize(RSA_KEY_LENGTH);
+        return rsaKeyGen.generateKeyPair();
+    }
+    public static SecretKey generateAESkey() {
         try {
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(256); // The AES key size in number of bits
-            secKey = generator.generateKey();
-
-            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            kpg.initialize(4096);
-            KeyPair keyPair = kpg.generateKeyPair();
-            publicKey = keyPair.getPublic();
-            privateKey = keyPair.getPrivate();
-
-            cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-        } catch (Exception e) {
+            return generator.generateKey();
+        } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
-    public byte[] encryptAESwithRSA() {
+
+    public static byte[] encryptAESwithRSA(PublicKey publicKey, SecretKey secretKey) {
+        if(cipher == null)
+            throw new IllegalStateException("Cipher cannot be null");
         try {
             cipher.init(Cipher.PUBLIC_KEY, publicKey);
-            return cipher.doFinal(secKey.getEncoded()/*Seceret Key From Step 1*/);
+            return cipher.doFinal(secretKey.getEncoded()/*Seceret Key From Step 1*/);
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return "hi".getBytes();
+        return null;
     }
 
 
-    public byte[] encryptAES(String plainText) {
+    public static byte[] encryptAES(String plainText, SecretKey secretKey) {
+        if(cipher == null)
+            throw new IllegalStateException("Cipher cannot be null");
         try {
             Cipher aesCipher = Cipher.getInstance("AES");
-            aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
+            aesCipher.init(Cipher.ENCRYPT_MODE, secretKey);
             return aesCipher.doFinal(plainText.getBytes());
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return "hi".getBytes();
+        return null;
     }
 
-    public String decrypt(byte[] encryptedKey, byte[] byteCipherText) {
+    /**
+     * Decrypt the aes key that has been encrypted with rsa
+     *
+     * @param encryptedKey
+     * @return
+     */
+    public static byte[] decrypteRSAkey(byte[] encryptedKey, PrivateKey privateKey) {
         try {
             cipher.init(Cipher.PRIVATE_KEY, privateKey);
-            byte[] decryptedKey = cipher.doFinal(encryptedKey);
+            return cipher.doFinal(encryptedKey);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * @param decryptedKey
+     * @param byteCipherText
+     * @return
+     */
+    public static String decryptWithAES(byte[] decryptedKey, byte[] byteCipherText) {
+        try {
             SecretKey originalKey = new SecretKeySpec(decryptedKey, 0, decryptedKey.length, "AES");
             Cipher aesCipher = Cipher.getInstance("AES");
             aesCipher.init(Cipher.DECRYPT_MODE, originalKey);
@@ -65,7 +96,6 @@ public class Encryption {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return "";
+        return null;
     }
-
 }
