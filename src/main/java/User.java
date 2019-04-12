@@ -1,6 +1,3 @@
-import io.ipfs.api.IPFS;
-import io.ipfs.multiaddr.MultiAddress;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -13,13 +10,17 @@ import java.util.concurrent.Executors;
 
 
 public class User {
-    String userName;
+    static String userName;
     HashMap<String, Pubsub> rooms;
+    Pubsub personalRoom;
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventaully change this from one large file to one file that is for your username or aliasis
+//    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
     public User(String user) throws IOException {
+        this.userName = user;
         rooms = new HashMap<>();
+        personalRoom = new Pubsub(user);
 
 //       Create the file or open it
         File file = new File("users.txt");
@@ -66,17 +67,18 @@ public class User {
     }
 
     /**
+     * Creates pubsub room and adds it to the dict(rooms)
+     *
      * @param otherUser
      */
     public void createRoom(String otherUser) {
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
-            User other = new User(otherUser);
-            String roomName = turnUsersToRoom(other);
+            PersonalRoom myRoom = new PersonalRoom();
+            String roomName = turnUsersToRoom(new String[]{userName});
             rooms.put(roomName, new Pubsub(roomName));
-            handShake(roomName);
 //            Add new user to the arraylist in pubsub and then send that to
-            rooms.get(roomName).users.add(other);
+            rooms.get(roomName).users.add(otherUser);
 //            Test the room
             rooms.get(roomName).writeToPubsub("lol");
             executorService.submit(rooms.get(roomName));
@@ -104,56 +106,15 @@ public class User {
      * @param users
      * @return
      */
-    public String turnUsersToRoom(User[] users) {
+    public String turnUsersToRoom(String[] users) {
         String[] s = new String[users.length];
         s[0] = userName;
         int i = 0;
-        for (User user : users)
-            s[++i] = user.userName;
+        for (String user : users)
+            s[++i] = user;
         Arrays.sort(s);
         return String.join("", s).replace('#', 'z');
     }
 
-    /**
-     * Untested
-     * Checks if other people have sent their names yet and if they all have than it will check the num peers and if
-     * There are an equal number of peers to number of people that should be in there than send rsa keys.
-     * Else change chat
-     *
-     * @param roomName
-     */
-//    TODO test this func
-    public void handShake(String roomName) {
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    int numPeople = rooms.get(roomName).users.size();
-                    try (Scanner scnr = new Scanner(new File(roomName))) {
-                        String tempLine = scnr.nextLine();
-                        while (scnr.hasNextLine())
-                            for (User u : rooms.get(roomName).users)
-                                if (tempLine.equals(u.userName))
-                                    numPeople--;
-                        if (numPeople != 0) {
-                            rooms.get(roomName).writeToPubsub(userName);
-                        } else {
-                            IPFS ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
-                            int numPeers = ipfs.pubsub.peers(roomName).toString().split(",").length + 1;
-                            if (numPeers == rooms.get(roomName).users.size())
-                                sendRSAKeys(roomName);
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        t.start();
-    }
-
-    public void sendRSAKeys(String roomName) {
-        rooms.get(roomName).sendAESkeyEnc();
-    }
 
 }

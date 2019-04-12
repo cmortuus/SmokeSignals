@@ -1,13 +1,9 @@
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.*;
 
 public class Encryption {
 //    TODO dont store these in plain text
-//    TODO send the aes key once it has been encrypted with rsa and then test reading and writing from the room.
     private static Cipher cipher;
     static int RSA_KEY_LENGTH = 4096;
     static String ALGORITHM_NAME = "RSA";
@@ -91,7 +87,7 @@ public class Encryption {
      * @param encryptedKey
      * @return
      */
-    public static byte[] decrypteRSAkey(byte[] encryptedKey, PrivateKey privateKey) {
+    public static byte[] decrypteAESkeyWithRSA(byte[] encryptedKey, PrivateKey privateKey) {
         try {
             cipher.init(Cipher.PRIVATE_KEY, privateKey);
             return cipher.doFinal(encryptedKey);
@@ -102,10 +98,12 @@ public class Encryption {
     }
 
     /**
+     * If returns null than it failed to decrypt the file
      * @param decryptedKey
      * @param byteCipherText
      * @return
      */
+//    TODO change this so that you can send it a pubsub message that has username and message included and it will use the username to figure out which aes key to decypt with and then decrypt the message
     public static String decryptWithAES(byte[] decryptedKey, byte[] byteCipherText) {
         try {
             SecretKey originalKey = new SecretKeySpec(decryptedKey, 0, decryptedKey.length, "AES");
@@ -113,8 +111,11 @@ public class Encryption {
             aesCipher.init(Cipher.DECRYPT_MODE, originalKey);
             byte[] bytePlainText = aesCipher.doFinal(byteCipherText);
             return new String(bytePlainText);
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | BadPaddingException | IllegalBlockSizeException | NoSuchPaddingException e) {
             e.printStackTrace();
+        } catch (InvalidKeyException e) {
+            e.printStackTrace();
+            return null;
         }
         return null;
     }
