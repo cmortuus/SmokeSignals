@@ -11,12 +11,12 @@ import java.util.concurrent.Executors;
 
 public class User {
     static String userName;
-    HashMap<String, Pubsub> rooms;
+    static HashMap<String, Pubsub> rooms;
     Pubsub personalRoom;
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventaully change this from one large file to one file that is for your username or aliasis
-//    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
+    //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
     public User(String user) throws IOException {
         this.userName = user;
         rooms = new HashMap<>();
@@ -78,7 +78,7 @@ public class User {
             String roomName = turnUsersToRoom(new String[]{userName});
             rooms.put(roomName, new Pubsub(roomName));
 //            Add new user to the arraylist in pubsub and then send that to
-            rooms.get(roomName).users.add(otherUser);
+//            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
             rooms.get(roomName).writeToPubsub("lol");
             executorService.submit(rooms.get(roomName));

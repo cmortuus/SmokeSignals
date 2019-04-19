@@ -10,25 +10,36 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
+//TODO Make it so that you can edit texts after you send them
+//    TODO give each message a hash and refference it by the hash of the message. Every message sent muight havea  hash that I just need to find
+//    TODO use this to edit the message, maybe keep a history maybe dont
+//TODO allow people to create a chat where after a message is seen it dissapears
+//TODO make private room based of hash if possable. I dont know if that is going to work
+//TODO when making the socaial media side of it allow people to add people to chats, but not add them to the social media feed
+//TODO add handshake for seen messages and write the messages that the user sends to the log file
 //TODO put a handshake in on each message so that if somebody misses a message than they all fill in the gaps
+//TODO Have them keep trying to decrypt the aes keys until they have everyone in the chat and then if one of the keys does not work throw an error to have everyone remake and resend the keys
 public class Pubsub implements Runnable {
+    Boolean saveMessage;
     Stream<Map<String, Object>> room;
     String roomName;
     IPFS ipfs;
-    ArrayList<String> users;
-    static ArrayList<PublicKey> publicKeys;
+    //    Username and hash
+    HashMap<String, String> users;
+    ArrayList<PublicKey> publicKeys;
     PrivateKey privateKey;
     PublicKey publicKey;
-    SecretKey secretKey;
+    SecretKey aesKey;
     int numUsersFound;
 
-    public Pubsub(String roomName) {
+    public Pubsub(String roomName, Boolean saveMessage) {
         try {
-            users = new ArrayList<>();
+            this.saveMessage = saveMessage;
+            users = new HashMap<>();
             this.roomName = roomName;
             ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
             room = ipfs.pubsub.sub(roomName);
@@ -36,7 +47,7 @@ public class Pubsub implements Runnable {
             KeyPair keypair = Encryption.generateKeys();
             publicKey = keypair.getPublic();
             privateKey = keypair.getPrivate();
-            secretKey = Encryption.generateAESkey();
+            aesKey = Encryption.generateAESkey();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -51,54 +62,66 @@ public class Pubsub implements Runnable {
 //        Needs two try catches because the tey statment that buffered writer is in does not account for the IOExecption that FileWriter will throw
         try {
             File file = new File(roomName);
-            if (!file.exists())
-                file.createNewFile();
+            if (saveMessage) {
+                if (!file.exists())
+                    file.createNewFile();
+            }
             try (FileWriter fw = new FileWriter(file, true)) {
 //                Write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
                     try {
-//                            Handshake built into this func
+//                      Handshake built into this func
                         String data = stringObjectMap.values().toString().split(",")[1].trim();
-                        for (String user : users) {
-                            writeToPubsub(User.userName);
-                            if (data.equals(user)) {
+                        if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
+                            for (String user : users.keySet()) {
+                                writeToPubsub(User.userName);
+                                if (data.equals(user)) {
 //                                    check if both we found all the proper users and check that there are not more peers in the chat than there are supposed to be
-                                if (++numUsersFound == user.length() && ipfs.pubsub.peers(roomName).toString().split(",").length <= user.length()) {
+                                    if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
 //                                    TODO make this so that it will not stop trying to decrypt the aes key until it has all the rsa keys
 //                                    TODO Validate that we can tell when it is not decrypted properly by the aes function
-                                    sendRSAkey();
-                                    sendAESkeyEnc();
+                                        sendRSAkey();
+                                        sendAESkeyEnc();
 //                                    TODO test this with random files that are not public keys to make sure it fails and figure out how to account for that maybe try to encrypt something with it and if it throws an error discard it
 //                                    Get any rsa keys in a new thread
-                                    Thread t = new Thread(() -> {
-                                        try {
+                                        Thread rsa = new Thread(() -> {
+                                            try {
 //                                            Hashes are 46 chars long
-                                            if(data.length() == 46) {
-                                                byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
-                                                PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
+                                                if (data.length() == 46) {
+                                                    byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
+                                                    PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
 
-                                                publicKeys.add(publicKey);
+                                                    publicKeys.add(publicKey);
+                                                }
+                                            } catch (NoSuchAlgorithmException e) {
+                                                e.printStackTrace();
+                                            } catch (InvalidKeySpecException e) {
+                                                e.printStackTrace();
                                             }
-                                        }catch (NoSuchAlgorithmException e){
-                                            e.printStackTrace();
-                                        }catch (InvalidKeySpecException e){
-                                            e.printStackTrace();
-                                        }
-                                    });
-                                    t.start();
-                                } else
-                                    numUsersFound++;
+                                        });
+                                        rsa.start();
+                                    } else
+                                        numUsersFound++;
 //                                this makes sure that it does not print out the usernames to file and it is totally silent
-                                continue;
+                                    continue;
+                                }
                             }
                         }
-                        String s = stringObjectMap.values().toString().split(",")[1].trim();
-                        byte[] c = Base64.getDecoder().decode(s);
-//                        Replacing _ with spaces because inorder to send it into pubsub for now I have to send it in with underscores replacing spaces
-                        fw.write(new String(c) + "\n");
-                        fw.flush();
-//                            System.out.println(RSA.rsaDecrypt(scnr.nextLine().getBytes(), privateKey));
-                        System.out.println("Got data from pubsub room " + roomName + " writing to the file.");
+
+//                        byte[] c = Base64.getDecoder().decode(data);
+                        String decryptedMessage = Encryption.decryptWithAES(aesKey.getEncoded(), data.getBytes());
+//                      This probably gets the hash of the user
+                        if (decryptedMessage.equals("3a73fa32e7f57fc947053e8edfd27d89a5d11b21c0f0415d9d5669dd6bb07bc5" + ipfs.id().values().toArray()[0])) {
+//                            Sends in hash
+                            setAsSeen(stringObjectMap.values().toString().split(",")[1].trim());
+                        } else {
+                            System.out.println(decryptedMessage);
+                            if (saveMessage) {
+                                fw.write(decryptedMessage + "\n");
+                                fw.flush();
+                                System.out.println("Got data from pubsub room " + roomName + " writing to the file.");
+                            }
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -114,8 +137,8 @@ public class Pubsub implements Runnable {
      */
     public void sendAESkeyEnc() {
         try {
-            for(String user : users)
-                writeToPubsub(user, new String(Encryption.encryptAESwithRSA(publicKey, secretKey)));
+            for (String user : users.keySet())
+                writeToPubsub(user, new String(Encryption.encryptAESwithRSA(publicKey, aesKey)));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -125,7 +148,7 @@ public class Pubsub implements Runnable {
     public ArrayList<Object> sendRSAkey() {
         ArrayList<Object> objects = new ArrayList<>();
         try {
-            for (String user : users)
+            for (String user : users.keySet())
                 objects.add(ipfs.pubsub.pub(user, String.valueOf(publicKey)));
             return objects;
         } catch (Exception e) {
@@ -161,12 +184,21 @@ public class Pubsub implements Runnable {
         }
     }
 
-        public Object writeToPubsub(String roomName, String phrase) {
-            try {
-                return ipfs.pubsub.pub(roomName, phrase);
-            } catch (Exception e) {
-                e.printStackTrace();
-                return null;
-            }
+    public Object writeToPubsub(String roomName, String phrase) {
+        try {
+            return ipfs.pubsub.pub(roomName, phrase);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Set latest message by the person who's hash is passed in as read
+     *
+     * @param hash of the user who has seen the message
+     */
+    public void setAsSeen(String hash) {
+
     }
 }
