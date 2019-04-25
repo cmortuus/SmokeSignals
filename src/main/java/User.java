@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 public class User {
     static String userName;
     static HashMap<String, Pubsub> rooms;
-    Pubsub personalRoom;
+    static Pubsub personalRoom = new PersonalRoom();
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventaully change this from one large file to one file that is for your username or aliasis
@@ -20,7 +20,6 @@ public class User {
     public User(String user) throws IOException {
         this.userName = user;
         rooms = new HashMap<>();
-        personalRoom = new Pubsub(user);
 
 //       Create the file or open it
         File file = new File("users.txt");
@@ -76,13 +75,13 @@ public class User {
             ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
             PersonalRoom myRoom = new PersonalRoom();
             String roomName = turnUsersToRoom(new String[]{userName});
-            rooms.put(roomName, new Pubsub(roomName));
+            rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
 //            Add new user to the arraylist in pubsub and then send that to
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
-            rooms.get(roomName).writeToPubsub("lol");
             executorService.submit(rooms.get(roomName));
-            rooms.get(roomName).writeToPubsub("lol");
+            rooms.get(roomName).writeToPubsub("1123123123123123");
+            rooms.get(roomName).writeToPubsub("hello");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -91,11 +90,11 @@ public class User {
     /**
      * Turn the usernames of two users into a room name
      *
-     * @param user
+     * @param otherUser
      * @return
      */
-    public String turnUsersToRoom(User user) {
-        String[] s = new String[]{user.userName, userName};
+    public String turnUsersToRoom(String otherUser) {
+        String[] s = new String[]{otherUser, userName};
         Arrays.sort(s);
         return String.join("", s).replace('#', 'z');
     }
@@ -111,7 +110,7 @@ public class User {
         s[0] = userName;
         int i = 0;
         for (String user : users)
-            s[++i] = user;
+            s[i++] = user;
         Arrays.sort(s);
         return String.join("", s).replace('#', 'z');
     }

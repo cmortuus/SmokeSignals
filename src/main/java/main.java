@@ -5,7 +5,7 @@ public class main {
             User Caleb = new User("CalebMorton");
             Caleb.createRoom("MattBennet");
         } catch (Exception e) {
-            System.out.println(e);
+            e.printStackTrace();
         }
     }
 }

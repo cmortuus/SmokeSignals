@@ -7,7 +7,7 @@ import java.security.spec.X509EncodedKeySpec;
 public class PersonalRoom extends Pubsub {
 
     public PersonalRoom() {
-        super(User.userName);
+        super(User.userName, true);
     }
 
     /**
