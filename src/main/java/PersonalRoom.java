@@ -32,5 +32,4 @@ public class PersonalRoom extends Pubsub {
             }
         });
     }
-
 }

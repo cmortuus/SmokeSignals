@@ -16,16 +16,18 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 //TODO Make it so that you can edit texts after you send them
-//    TODO give each message a hash and refference it by the hash of the message. Every message sent muight havea  hash that I just need to find
-//    TODO use this to edit the message, maybe keep a history maybe dont
-//TODO allow people to create a chat where after a message is seen it dissapears
-//TODO make private room based of hash if possable. I dont know if that is going to work
+//  TODO send message that ends in a 0. This message will include a time stamp and the hashcode of the message. Each message will have to be stored in the hashmap with a timestamp
+//  TODO give each message a hash and refference it by the hash of the message. Every message sent muight havea  hash that I just need to find
+//  TODO use this to edit the message, maybe keep a history maybe dont
 //TODO when making the socaial media side of it allow people to add people to chats, but not add them to the social media feed
 //TODO add handshake for seen messages and write the messages that the user sends to the log file
 //TODO put a handshake in on each message so that if somebody misses a message than they all fill in the gaps
 //TODO Have them keep trying to decrypt the aes keys until they have everyone in the chat and then if one of the keys does not work throw an error to have everyone remake and resend the keys
 //TODO add voice features in as well
 //TODO make it so that it dyncmicly choses to use one aes key per person or per room depending on number of people in room. If you have an aes key for each person you have to send a message for each person.
+//TODO make it so you can delete a person from a chatroom if they delete the app
+//TODO make sure that people can see the message when it is not writing to a file
+//TODO send message when you go online and then when the app closes send message that you are offline when you come online everyone tells you if they are online everything else is assumed offline
 public class Pubsub implements Runnable {
     Boolean saveMessage;
     Stream<Map<String, Object>> room;
@@ -38,6 +40,7 @@ public class Pubsub implements Runnable {
     PublicKey publicKey;
     SecretKey aesKey;
     int numUsersFound;
+    ArrayList<String> messages;
 
     public Pubsub(String roomName, Boolean saveMessage) {
         try {
@@ -51,6 +54,7 @@ public class Pubsub implements Runnable {
             publicKey = keypair.getPublic();
             privateKey = keypair.getPrivate();
             aesKey = Encryption.generateAESkey();
+            messages = new ArrayList<>();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -82,11 +86,8 @@ public class Pubsub implements Runnable {
                                 if (data.equals(user)) {
 //                                    check if both we found all the proper users and check that there are not more peers in the chat than there are supposed to be
                                     if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
-//                                    TODO make this so that it will not stop trying to decrypt the aes key until it has all the rsa keys
-//                                    TODO Validate that we can tell when it is not decrypted properly by the aes function
                                         sendRSAkey();
                                         sendAESkeyEnc();
-//                                    TODO test this with random files that are not public keys to make sure it fails and figure out how to account for that maybe try to encrypt something with it and if it throws an error discard it
 //                                    Get any rsa keys in a new thread
                                         Thread rsa = new Thread(() -> {
                                             try {
@@ -114,19 +115,23 @@ public class Pubsub implements Runnable {
                         String decodedString = new String(decodedBytes);
                         String decryptedMessage = Encryption.decrypt(decodedString, aesKey);
                         System.out.println("decrypted message = " + decryptedMessage);
+                        if(decryptedMessage.endsWith("1")) {
+                            decryptedMessage = decryptedMessage.substring(0, data.length() - 1);
+
 //                        TODO check here for any messages that have the same value as your ipfs id. There is probably a better way to check if a message has been seen
-                        String ipfsID = ipfs.refs.local().toArray()[1].toString();
-                        System.out.println(ipfsID);
-                        if (decryptedMessage.equals(ipfsID.trim())) {
-//                            Sends in hash
-                            setAsSeen(stringObjectMap.values().toString().split(",")[1].trim());
-//                        If it is not a confomration message that it has been seen write the message to file
-                        } else {
-                            System.out.println(decryptedMessage.trim());
-                            if (saveMessage) {
-                                fw.write(decryptedMessage + "\n");
-                                fw.flush();
-                                System.out.println("Got data from pubsub room " + roomName + " writing to the file.\n");
+                            String ipfsID = ipfs.refs.local().toArray()[1].toString();
+                            System.out.println(ipfsID);
+                            if (decryptedMessage != null) {
+                                System.out.println(decryptedMessage.trim());
+                                if (saveMessage) {
+                                    messages.add(decryptedMessage)
+                                    fw.write(decryptedMessage + "\n");
+                                    fw.flush();
+                                    System.out.println("Got data from pubsub room " + roomName + " writing to the file.\n");
+                                }
+                            } else if (decryptedMessage.endsWith("0") && decryptedMessage.equals(ipfsID.trim())) {
+                                decryptedMessage = decryptedMessage.substring(0, decryptedMessage.length() - 1);
+                                setAsSeen(decryptedMessage);
                             }
                         }
                     } catch (Exception e) {
@@ -191,7 +196,7 @@ public class Pubsub implements Runnable {
      */
     public Object writeToPubsub(String roomName, String phrase) {
         try {
-            String encPhrase = Encryption.encrypt(phrase, aesKey);
+            String encPhrase = Encryption.encrypt( phrase, aesKey);
 //            It breaks if you take this out
             System.out.println("dec phrase = " + Encryption.decrypt(encPhrase, aesKey) + "\n");
             return ipfs.pubsub.pub(roomName, encPhrase);
