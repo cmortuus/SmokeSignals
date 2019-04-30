@@ -7,7 +7,8 @@ import java.security.spec.X509EncodedKeySpec;
 public class PersonalRoom extends Pubsub {
 
     public PersonalRoom() {
-        super(User.userName, true);
+//        TODO make this the hash. It is sending in the username of a user for the private room, but make it the hash
+        super(User.userName, true, User.userName);
     }
 
     /**

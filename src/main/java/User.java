@@ -12,7 +12,6 @@ import java.util.concurrent.Executors;
 public class User {
     static String userName;
     static HashMap<String, Pubsub> rooms;
-    static Pubsub personalRoom = new PersonalRoom();
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventaully change this from one large file to one file that is for your username or aliasis
@@ -75,13 +74,13 @@ public class User {
             ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
             PersonalRoom myRoom = new PersonalRoom();
             String roomName = turnUsersToRoom(new String[]{userName});
-            rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
+            rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true, userName));
 //            Add new user to the arraylist in pubsub and then send that to
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
             executorService.submit(rooms.get(roomName));
-            rooms.get(roomName).writeToPubsub("1123123123123123");
-            rooms.get(roomName).writeToPubsub("hello");
+            rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", false);
+            rooms.get(roomName).writeToPubsub("hello", false);
         } catch (Exception e) {
             e.printStackTrace();
         }

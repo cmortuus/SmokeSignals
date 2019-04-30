@@ -9,10 +9,8 @@ import java.io.IOException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Stream;
 
 //TODO Make it so that you can edit texts after you send them
@@ -40,9 +38,11 @@ public class Pubsub implements Runnable {
     PublicKey publicKey;
     SecretKey aesKey;
     int numUsersFound;
-    ArrayList<String> messages;
+    String username;
+    //    THe first string is a hash to indacate the message than the inside hashmap is the message its self and whether or not it has been seen
+    HashMap<Long, HashMap<String, Boolean>> messages;
 
-    public Pubsub(String roomName, Boolean saveMessage) {
+    public Pubsub(String roomName, Boolean saveMessage, String username) {
         try {
             this.saveMessage = saveMessage;
             users = new HashMap<>();
@@ -54,7 +54,8 @@ public class Pubsub implements Runnable {
             publicKey = keypair.getPublic();
             privateKey = keypair.getPrivate();
             aesKey = Encryption.generateAESkey();
-            messages = new ArrayList<>();
+            messages = new HashMap<>();
+            this.username = username;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -80,9 +81,10 @@ public class Pubsub implements Runnable {
 //                      Handshake built into this func
 //                      Gets the text of the message
                         String data = stringObjectMap.values().toString().split(",")[1].trim();
+                        String sender = stringObjectMap.values().toString().split(",")[2].trim();
                         if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
                             for (String user : users.keySet()) {
-                                writeToPubsub(User.userName);
+                                writeToPubsub(User.userName, true);
                                 if (data.equals(user)) {
 //                                    check if both we found all the proper users and check that there are not more peers in the chat than there are supposed to be
                                     if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
@@ -104,37 +106,48 @@ public class Pubsub implements Runnable {
                                             }
                                         });
                                         rsa.start();
-                                    } else
+                                    } else {
                                         numUsersFound++;
-//                                this makes sure that it does not print out the usernames to file and it is totally silent
-                                    continue;
+                                        continue;
+                                    }
                                 }
                             }
                         }
                         byte[] decodedBytes = Base64.getDecoder().decode(data);
-                        String decodedString = new String(decodedBytes);
+//                        For some reason it removes the +s and adds spaces which throw errors because that is not a thing in an aes string
+                        String decodedString = new String(decodedBytes).replaceAll(" ", "+");
                         String decryptedMessage = Encryption.decrypt(decodedString, aesKey);
-                        System.out.println("decrypted message = " + decryptedMessage);
-                        if(decryptedMessage.endsWith("1")) {
-                            decryptedMessage = decryptedMessage.substring(0, data.length() - 1);
+                        String[] timeAndMessage = decryptedMessage.split("\\*", 3);
 
+                        StringBuilder sb = new StringBuilder();
+//                        Print out message. For some reason when you do it in one print statment it hangs with no error message
+                        for (int i = 0; i < timeAndMessage.length; i++) {
+                            if (i == 0)
+                                sb.append(getTime(timeAndMessage[0]) + "  ");
+                            else if (i == 2)
+                                sb.append(timeAndMessage[i].substring(0, timeAndMessage[2].length() - 1) + "  ");
+                            else
+                                sb.append(timeAndMessage[i].split("#")[0] + "  ");
+                        }
+                        System.out.println(sb.toString());
+                        addMessage(timeAndMessage);
+                        if (decryptedMessage.endsWith("1")) {
+                            decryptedMessage = decryptedMessage.substring(0, data.length() - 1);
 //                        TODO check here for any messages that have the same value as your ipfs id. There is probably a better way to check if a message has been seen
                             String ipfsID = ipfs.refs.local().toArray()[1].toString();
                             System.out.println(ipfsID);
                             if (decryptedMessage != null) {
                                 System.out.println(decryptedMessage.trim());
                                 if (saveMessage) {
-                                    messages.add(decryptedMessage)
-                                    fw.write(decryptedMessage + "\n");
+                                    fw.write(decryptedMessage.substring(0, decryptedMessage.length() - 1) + "\n");
                                     fw.flush();
                                     System.out.println("Got data from pubsub room " + roomName + " writing to the file.\n");
                                 }
                             } else if (decryptedMessage.endsWith("0") && decryptedMessage.equals(ipfsID.trim())) {
-                                decryptedMessage = decryptedMessage.substring(0, decryptedMessage.length() - 1);
-                                setAsSeen(decryptedMessage);
+                                setAsSeen(decryptedMessage.substring(0, decryptedMessage.length() - 1));
                             }
                         }
-                    } catch (Exception e) {
+                    } catch (IOException e) {
                         e.printStackTrace();
                     }
                 });
@@ -144,6 +157,19 @@ public class Pubsub implements Runnable {
         }
     }
 
+    //TODO update this for new way messages are sent
+    private long addMessage(String[] decryptedMessage) {
+        HashMap<String, Boolean> hashMap = new HashMap<>();
+        hashMap.put((decryptedMessage[2].substring(0, decryptedMessage[2].length() - 1)), false);
+        messages.put(Long.parseLong(decryptedMessage[0]), hashMap);
+        return Long.parseLong(decryptedMessage[0]);
+    }
+
+    public String getTime(String time) {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+        return sdf.format(new Date(Long.parseLong(time)));
+    }
+
 
     /**
      * Encrypt the aes key and then send it to each person's private room individually to reduce clutter on massave servers when someone new joins
@@ -151,7 +177,7 @@ public class Pubsub implements Runnable {
     public void sendAESkeyEnc() {
         try {
             for (String user : users.keySet())
-                writeToPubsub(user, new String(Encryption.encryptAESwithRSA(publicKey, aesKey)));
+                writeToPubsub(user, new String(Encryption.encryptAESwithRSA(publicKey, aesKey)), true);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -161,9 +187,39 @@ public class Pubsub implements Runnable {
     public ArrayList<Object> sendRSAkey() {
         ArrayList<Object> objects = new ArrayList<>();
         try {
-            for (String user : users.keySet())
-                objects.add(ipfs.pubsub.pub(user, String.valueOf(publicKey)));
-            return objects;
+            for (String user : users.keySet()) {
+                if (ipfs.pubsub.peers(user).toString().split(",").length != users.size()) {
+                    objects.add(ipfs.pubsub.pub(user, String.valueOf(publicKey)));
+                    return objects;
+                } else {
+                    throw new SecurityException("Someone else is in the chat while we are trying to send the rsa key to their private chat");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * Write the message to pubsub. Is called by encryptMessage
+     * Adding a 1 means that it in an internal message a 0 means that it is external
+     *
+     * @param phrase
+     * @return I dont know exactly what this is returning, but I think it might be important
+     */
+    public Object writeToPubsub(String phrase, boolean isInternal) {
+        try {
+            String encPhrase;
+            if (isInternal)
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '1', aesKey);
+            else
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '0', aesKey);
+//            It breaks if you take this out
+            Encryption.decrypt(encPhrase, aesKey);
+            return ipfs.pubsub.pub(this.roomName, encPhrase);
+
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -176,29 +232,15 @@ public class Pubsub implements Runnable {
      * @param phrase
      * @return I dont know exactly what this is returning, but I think it might be important
      */
-    public Object writeToPubsub(String phrase) {
+    public Object writeToPubsub(String roomName, String phrase, boolean isInternal) {
         try {
-            String encPhrase = Encryption.encrypt(phrase, aesKey);
+            String encPhrase;
+            if (isInternal)
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '1', aesKey);
+            else
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '0', aesKey);
 //            It breaks if you take this out
-            System.out.println("dec phrase = " + Encryption.decrypt(encPhrase, aesKey) + "\n");
-            return ipfs.pubsub.pub(roomName, encPhrase);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    /**
-     * Write the message to pubsub. Is called by encryptMessage
-     *
-     * @param phrase
-     * @return I dont know exactly what this is returning, but I think it might be important
-     */
-    public Object writeToPubsub(String roomName, String phrase) {
-        try {
-            String encPhrase = Encryption.encrypt( phrase, aesKey);
-//            It breaks if you take this out
-            System.out.println("dec phrase = " + Encryption.decrypt(encPhrase, aesKey) + "\n");
+            Encryption.decrypt(encPhrase, aesKey);
             return ipfs.pubsub.pub(roomName, encPhrase);
         } catch (Exception e) {
             e.printStackTrace();
