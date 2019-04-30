@@ -1,41 +1,21 @@
-import javax.crypto.*;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.UnsupportedEncodingException;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 import java.security.*;
-import java.util.Arrays;
 import java.util.Base64;
 
 public class Encryption {
     //    TODO dont store these in plain text
     private static Cipher rsaCipher;
-    static int RSA_KEY_LENGTH = 4096;
-    static String ALGORITHM_NAME = "RSA";
-    private static byte[] iv = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    private static IvParameterSpec ivspec = new IvParameterSpec(iv);
-    private static SecretKeySpec secretKey;
-    private static byte[] key;
+    private static final int RSA_KEY_LENGTH = 4096;
+    private static final String ALGORITHM_NAME = "RSA";
 
     //    Defines the ciphar var with a try catch
     static {
         try {
             rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void setKey(String myKey) {
-        MessageDigest sha = null;
-        try {
-            key = myKey.getBytes("UTF-8");
-            sha = MessageDigest.getInstance("SHA-1");
-            key = sha.digest(key);
-            key = Arrays.copyOf(key, 16);
-            secretKey = new SecretKeySpec(key, "AES");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
     }

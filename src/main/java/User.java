@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 
 public class User {
     static String userName;
-    static HashMap<String, Pubsub> rooms;
+    private static HashMap<String, Pubsub> rooms;
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventaully change this from one large file to one file that is for your username or aliasis
@@ -69,12 +69,11 @@ public class User {
      *
      * @param otherUser
      */
-    public void createRoom(String otherUser) {
+    private void createRoom(String otherUser) {
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
-            PersonalRoom myRoom = new PersonalRoom();
             String roomName = turnUsersToRoom(new String[]{userName});
-            rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true, userName));
+            rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
 //            Add new user to the arraylist in pubsub and then send that to
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
@@ -92,7 +91,7 @@ public class User {
      * @param otherUser
      * @return
      */
-    public String turnUsersToRoom(String otherUser) {
+    private String turnUsersToRoom(String otherUser) {
         String[] s = new String[]{otherUser, userName};
         Arrays.sort(s);
         return String.join("", s).replace('#', 'z');
@@ -104,7 +103,7 @@ public class User {
      * @param users
      * @return
      */
-    public String turnUsersToRoom(String[] users) {
+    private String turnUsersToRoom(String[] users) {
         String[] s = new String[users.length];
         s[0] = userName;
         int i = 0;

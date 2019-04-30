@@ -9,7 +9,7 @@ import java.util.ArrayList;
 
 public class IPFSnonPubsub {
 
-    protected static IPFS ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
+    private static IPFS ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
 
     /**
      * adds file to IPFS and pins it and returns hash
@@ -17,7 +17,7 @@ public class IPFSnonPubsub {
      * @param filename
      * @return hash of the file that gets uploaded, Null if fails open the file.
      */
-    protected static Multihash addFile(String filename) {
+    public static Multihash addFile(String filename) {
         try {
             File f = new File(filename);
             if (!f.exists())
@@ -38,7 +38,7 @@ public class IPFSnonPubsub {
      * @param filename
      * @return
      */
-    protected static ArrayList<Multihash> addFile(String[] filename) {
+    public static ArrayList<Multihash> addFile(String[] filename) {
         try {
             ArrayList<Multihash> hashes = new ArrayList<>();
             for (String f : filename) {
@@ -60,7 +60,7 @@ public class IPFSnonPubsub {
      * @param hash
      * @return
      */
-    protected static byte[] getFile(Multihash hash) {
+    public static byte[] getFile(Multihash hash) {
         try {
             return ipfs.cat(hash);
         } catch (IOException e) {
@@ -75,7 +75,7 @@ public class IPFSnonPubsub {
      * @param hashes
      * @return
      */
-    protected static ArrayList<byte[]> getFile(Multihash[] hashes) {
+    public static ArrayList<byte[]> getFile(Multihash[] hashes) {
         try {
             ArrayList<byte[]> files = new ArrayList<>();
             for (Multihash hash : hashes) {

@@ -27,22 +27,21 @@ import java.util.stream.Stream;
 //TODO make sure that people can see the message when it is not writing to a file
 //TODO send message when you go online and then when the app closes send message that you are offline when you come online everyone tells you if they are online everything else is assumed offline
 public class Pubsub implements Runnable {
-    Boolean saveMessage;
-    Stream<Map<String, Object>> room;
-    String roomName;
-    IPFS ipfs;
+    private boolean saveMessage;
+    private Stream<Map<String, Object>> room;
+    private String roomName;
+    private IPFS ipfs;
     //    Username and hash
-    HashMap<String, String> users;
-    ArrayList<PublicKey> publicKeys;
-    PrivateKey privateKey;
-    PublicKey publicKey;
-    SecretKey aesKey;
-    int numUsersFound;
-    String username;
+    private HashMap<String, String> users;
+    private ArrayList<PublicKey> publicKeys;
+    private PrivateKey privateKey;
+    private PublicKey publicKey;
+    private SecretKey aesKey;
+    private int numUsersFound;
     //    THe first string is a hash to indacate the message than the inside hashmap is the message its self and whether or not it has been seen
-    HashMap<Long, HashMap<String, Boolean>> messages;
+    HashMap<Long, HashMap<String, HashMap<String, Boolean>>> messages;
 
-    public Pubsub(String roomName, Boolean saveMessage, String username) {
+    public Pubsub(String roomName, Boolean saveMessage) {
         try {
             this.saveMessage = saveMessage;
             users = new HashMap<>();
@@ -55,7 +54,6 @@ public class Pubsub implements Runnable {
             privateKey = keypair.getPrivate();
             aesKey = Encryption.generateAESkey();
             messages = new HashMap<>();
-            this.username = username;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -159,13 +157,15 @@ public class Pubsub implements Runnable {
 
     //TODO update this for new way messages are sent
     private long addMessage(String[] decryptedMessage) {
-        HashMap<String, Boolean> hashMap = new HashMap<>();
-        hashMap.put((decryptedMessage[2].substring(0, decryptedMessage[2].length() - 1)), false);
-        messages.put(Long.parseLong(decryptedMessage[0]), hashMap);
+        HashMap<String, Boolean> messageAndSeen = new HashMap<>();
+        messageAndSeen.put((decryptedMessage[2].substring(0, decryptedMessage[2].length() - 1)), false);
+        HashMap<String, HashMap<String, Boolean>> outerHashmap = new HashMap<>();
+        outerHashmap.put(users.get(decryptedMessage[0]), messageAndSeen);
+        messages.put(Long.parseLong(decryptedMessage[0]), outerHashmap);
         return Long.parseLong(decryptedMessage[0]);
     }
 
-    public String getTime(String time) {
+    private String getTime(String time) {
         SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
         return sdf.format(new Date(Long.parseLong(time)));
     }
@@ -174,7 +174,7 @@ public class Pubsub implements Runnable {
     /**
      * Encrypt the aes key and then send it to each person's private room individually to reduce clutter on massave servers when someone new joins
      */
-    public void sendAESkeyEnc() {
+    private void sendAESkeyEnc() {
         try {
             for (String user : users.keySet())
                 writeToPubsub(user, new String(Encryption.encryptAESwithRSA(publicKey, aesKey)), true);
@@ -184,7 +184,7 @@ public class Pubsub implements Runnable {
     }
 
     //    TODO make sure this does not send the message if there is more than one person in the chat and throws erros gloore if there is another person
-    public ArrayList<Object> sendRSAkey() {
+    private ArrayList<Object> sendRSAkey() {
         ArrayList<Object> objects = new ArrayList<>();
         try {
             for (String user : users.keySet()) {
@@ -213,9 +213,9 @@ public class Pubsub implements Runnable {
         try {
             String encPhrase;
             if (isInternal)
-                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '1', aesKey);
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + User.userName + "*" + phrase + '1', aesKey);
             else
-                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '0', aesKey);
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + User.userName + "*" + phrase + '0', aesKey);
 //            It breaks if you take this out
             Encryption.decrypt(encPhrase, aesKey);
             return ipfs.pubsub.pub(this.roomName, encPhrase);
@@ -236,9 +236,9 @@ public class Pubsub implements Runnable {
         try {
             String encPhrase;
             if (isInternal)
-                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '1', aesKey);
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + User.userName + "*" + phrase + '1', aesKey);
             else
-                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + username + "*" + phrase + '0', aesKey);
+                encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + User.userName + "*" + phrase + '0', aesKey);
 //            It breaks if you take this out
             Encryption.decrypt(encPhrase, aesKey);
             return ipfs.pubsub.pub(roomName, encPhrase);
@@ -254,7 +254,10 @@ public class Pubsub implements Runnable {
      *
      * @param hash of the user who has seen the message
      */
-    public void setAsSeen(String hash) {
+    private void setAsSeen(long timeOfText, String hash) {
+        HashMap<String, HashMap<String, HashMap<String, Boolean>>> message = new HashMap<>();
+
+        messages.put();
 
     }
 
