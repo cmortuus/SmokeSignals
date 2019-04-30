@@ -142,7 +142,7 @@ public class Pubsub implements Runnable {
                                     System.out.println("Got data from pubsub room " + roomName + " writing to the file.\n");
                                 }
                             } else if (decryptedMessage.endsWith("0") && decryptedMessage.equals(ipfsID.trim())) {
-                                setAsSeen(decryptedMessage.substring(0, decryptedMessage.length() - 1));
+                                setAsSeen(Long.parseLong(timeAndMessage[0]), users.get(timeAndMessage[1]));
                             }
                         }
                     } catch (IOException e) {
@@ -183,7 +183,7 @@ public class Pubsub implements Runnable {
         }
     }
 
-    //    TODO make sure this does not send the message if there is more than one person in the chat and throws erros gloore if there is another person
+//TODO change this to sending to the main chat encrypted with the rsa keys of each person insted of trying to send to private room. We removed private rooms
     private ArrayList<Object> sendRSAkey() {
         ArrayList<Object> objects = new ArrayList<>();
         try {
@@ -255,9 +255,9 @@ public class Pubsub implements Runnable {
      * @param hash of the user who has seen the message
      */
     private void setAsSeen(long timeOfText, String hash) {
-        HashMap<String, HashMap<String, HashMap<String, Boolean>>> message = new HashMap<>();
-
-        messages.put();
+//        HashMap<String, HashMap<String, HashMap<String, Boolean>>> message = new HashMap<>();
+//
+//        messages.put();
 
     }
 

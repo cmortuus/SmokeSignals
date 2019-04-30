@@ -69,7 +69,7 @@ public class User {
      *
      * @param otherUser
      */
-    private void createRoom(String otherUser) {
+    public void createRoom(String otherUser) {
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
             String roomName = turnUsersToRoom(new String[]{userName});
