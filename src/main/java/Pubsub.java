@@ -40,7 +40,7 @@ public class Pubsub implements Runnable {
     private int numUsersFound;
 //          Time ID       Username        Message isRead
     HashMap<Long, HashMap<String, HashMap<String, Boolean>>> messages;
-
+//
     public Pubsub(String roomName, Boolean saveMessage) {
         try {
             this.saveMessage = saveMessage;
