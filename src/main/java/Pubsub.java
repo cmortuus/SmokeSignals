@@ -38,7 +38,7 @@ public class Pubsub implements Runnable {
     private PublicKey publicKey;
     private SecretKey aesKey;
     private int numUsersFound;
-    //    THe first string is a hash to indacate the message than the inside hashmap is the message its self and whether or not it has been seen
+//          Time ID       Username        Message isRead
     HashMap<Long, HashMap<String, HashMap<String, Boolean>>> messages;
 
     public Pubsub(String roomName, Boolean saveMessage) {
@@ -155,7 +155,6 @@ public class Pubsub implements Runnable {
         }
     }
 
-    //TODO update this for new way messages are sent
     private long addMessage(String[] decryptedMessage) {
         HashMap<String, Boolean> messageAndSeen = new HashMap<>();
         messageAndSeen.put((decryptedMessage[2].substring(0, decryptedMessage[2].length() - 1)), false);
@@ -166,7 +165,7 @@ public class Pubsub implements Runnable {
     }
 
     private String getTime(String time) {
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss");
         return sdf.format(new Date(Long.parseLong(time)));
     }
 
