@@ -76,8 +76,8 @@ public class User {
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
             executorService.submit(rooms.get(roomName));
-            rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", false);
-            rooms.get(roomName).writeToPubsub("hello", false);
+            rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
+            rooms.get(roomName).writeToPubsub("hello", 0);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -98,8 +98,8 @@ public class User {
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
             executorService.submit(rooms.get(roomName));
-            rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", false);
-            rooms.get(roomName).writeToPubsub("hello", false);
+            rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
+            rooms.get(roomName).writeToPubsub("hello", 0);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -77,28 +77,18 @@ public class Pubsub implements Runnable {
 //                Write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
                     try {
-//                      Handshake built into this func
-//                      Gets the text of the message
                         String data = stringObjectMap.values().toString().split(",")[1].trim();
-                        if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
-                            for (String user : users.keySet()) {
-                                writeToPubsub(User.userName, true);
-                                if (data.equals(user)) {
-//                                    check if both we found all the proper users and check that there are not more peers in the chat than there are supposed to be
-                                    if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
-                                        sendRSAkey();
-                                        sendAESkeyEnc();
-//                                    Get any rsa keys in a new thread
-                                        Thread rsa = new Thread(() -> {
-
-                                        });
-                                        rsa.start();
-                                    } else {
-                                        numUsersFound++;
-                                    }
+                        Thread sendUsername = new Thread(() -> {
+                            try {
+                                while (numUsersFound < users.size()) {
+                                    writeToPubsub("username", 4);
+                                    Thread.sleep(1000);
                                 }
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
                             }
-                        }
+                        });
+                        sendUsername.run();
                         byte[] decodedBytes = Base64.getDecoder().decode(data);
 //                        For some reason it removes the +s and adds spaces which throw errors because that is not a thing in an aes string
                         String decodedString = new String(decodedBytes).replaceAll(" ", "+");
@@ -129,11 +119,14 @@ public class Pubsub implements Runnable {
                         } else if (timeAndMessage[2].endsWith("1") && decryptedMessage.equals(ipfsID.trim())) {
                             setAsSeen(Long.parseLong(timeAndMessage[0]), users.get(timeAndMessage[1]));
                         } else if (timeAndMessage[2].endsWith("2")) {
-//                            Gets rsa key
                             try {
                                 byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
                                 PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
                                 publicKeys.add(publicKey);
+                                if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
+                                    sendRSAkey();
+                                    sendAESkeyEnc();
+                                }
                             } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
                                 e.printStackTrace();
                             }
@@ -143,11 +136,18 @@ public class Pubsub implements Runnable {
                     }
                 });
             }
-        } catch (IOException e) {
+        } catch (
+                IOException e) {
             e.printStackTrace();
         }
+
     }
 
+    /**
+     * Adds message to memory where we are temp storing it. Sending it to file is elsewhere
+     *
+     * @param decryptedMessage Array of all the parts of a decrypted message. 0 is time stamp. 1 is username. 2 is text.
+     */
     private void addMessage(String[] decryptedMessage) {
         HashMap<String, Boolean> messageAndSeen = new HashMap<>();
         messageAndSeen.put((decryptedMessage[2].substring(0, decryptedMessage[2].length() - 1)), false);
@@ -156,6 +156,13 @@ public class Pubsub implements Runnable {
         messages.put(Long.parseLong(decryptedMessage[0]), outerHashmap);
     }
 
+    /**
+     * Turns the epoc time sent in the message to human readable time
+     * At some point this will have to be related to current time. ie 20 min ago
+     *
+     * @param time The Epoc time that the message was sent at
+     * @return The human readable time that the message was sent at
+     */
     private String getTime(String time) {
         SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss");
         return sdf.format(new Date(Long.parseLong(time)));
@@ -168,8 +175,7 @@ public class Pubsub implements Runnable {
     private void sendAESkeyEnc() {
         try {
             String aesEnc = new String(Encryption.encryptAESwithRSA(publicKey, aesKey));
-            for (String user : users.keySet())
-                writeToPubsub(user, aesEnc, true);
+            writeToPubsub(aesEnc, 3);
 //            If the rsa keys fail it just recreates the keys and tries to send the aes keys again
         } catch (IllegalStateException e) {
             try {
@@ -205,7 +211,7 @@ public class Pubsub implements Runnable {
      * Write the message to pubsub. Is called by encryptMessage
      * Adding a 1 means that it in an internal message a 0 means that it is external
      *
-     * @param phrase     The phrase to be encrypted and then sent
+     * @param phrase    The phrase to be encrypted and then sent
      * @param delimiter tells the program what to do with the message. 0 is read the message to the user. 1 is it is a read response. 2 is sending of an rsa key. 3 is an aes key
      */
     void writeToPubsub(String phrase, int delimiter) {
@@ -225,7 +231,7 @@ public class Pubsub implements Runnable {
      *
      * @param roomName  The room to post to
      * @param phrase    The phrase to be encrypted and then sent
-     * @param delimiter tells the program what to do with the message. 0 is read the message to the user. 1 is it is a read response. 2 is sending of an rsa key. 3 is an aes key
+     * @param delimiter tells the program what to do with the message. 0 is read the message to the user. 1 is it is a read response. 2 is sending of an rsa key. 3 is an aes key. Just sending username for
      */
     void writeToPubsub(String roomName, String phrase, short delimiter) {
         try {
