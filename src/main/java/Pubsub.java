@@ -15,14 +15,14 @@ import java.util.stream.Stream;
 
 //TODO Make it so that you can edit texts after you send them
 //  TODO send message that ends in a 0. This message will include a time stamp and the hashcode of the message. Each message will have to be stored in the hashmap with a timestamp
-//  TODO give each message a hash and refference it by the hash of the message. Every message sent muight havea  hash that I just need to find
-//  TODO use this to edit the message, maybe keep a history maybe dont
-//TODO when making the socaial media side of it allow people to add people to chats, but not add them to the social media feed
+//  TODO give each message a hash and reference it by the hash of the message. Every message sent might have a hash that I just need to find
+//  TODO use this to edit the message, maybe keep a history maybe don't
+//TODO when making the social media side of it allow people to add people to chats, but not add them to the social media feed
 //TODO add handshake for seen messages and write the messages that the user sends to the log file
 //TODO put a handshake in on each message so that if somebody misses a message than they all fill in the gaps
 //TODO Have them keep trying to decrypt the aes keys until they have everyone in the chat and then if one of the keys does not work throw an error to have everyone remake and resend the keys
 //TODO add voice features in as well
-//TODO make it so that it dyncmicly choses to use one aes key per person or per room depending on number of people in room. If you have an aes key for each person you have to send a message for each person.
+//TODO make it so that it dynamically chooses to use one aes key per person or per room depending on number of people in room. If you have an aes key for each person you have to send a message for each person.
 //TODO make it so you can delete a person from a chatroom if they delete the app
 //TODO make sure that people can see the message when it is not writing to a file
 //TODO send message when you go online and then when the app closes send message that you are offline when you come online everyone tells you if they are online everything else is assumed offline
@@ -68,7 +68,7 @@ public class Pubsub implements Runnable {
      */
     @Override
     public void run() {
-//        Needs two try catches because the tey statment that buffered writer is in does not account for the IOExecption that FileWriter will throw
+//        Needs two try catches because the tey statement that buffered writer is in does not account for the IOException that FileWriter will throw
         try {
             File file = new File(roomName);
             if (!file.exists() && saveMessage)
@@ -96,7 +96,7 @@ public class Pubsub implements Runnable {
                         String[] timeAndMessage = decryptedMessage.split("\\*", 3);
 
                         StringBuilder sb = new StringBuilder();
-//                        Print out message. For some reason when you do it in one print statment it hangs with no error message
+//                        Print out message. For some reason when you do it in one print statement it hangs with no error message
                         for (int i = 0; i < timeAndMessage.length; i++) {
                             if (i == 0) {
                                 sb.append(getTime(timeAndMessage[0]));
@@ -160,7 +160,7 @@ public class Pubsub implements Runnable {
      * Turns the epoc time sent in the message to human readable time
      * At some point this will have to be related to current time. ie 20 min ago
      *
-     * @param time The Epoc time that the message was sent at
+     * @param time The Epoch time that the message was sent at
      * @return The human readable time that the message was sent at
      */
     private String getTime(String time) {
@@ -169,7 +169,7 @@ public class Pubsub implements Runnable {
     }
 
     /**
-     * Encrypt the aes key and then send it to each person's private room individually to reduce clutter on massave servers when someone new joins
+     * Encrypt the aes key and then send it to each person's private room individually to reduce clutter on massive servers when someone new joins
      * Also if the it fails to encrypt the rsa key than run the method again after recreating the aes keys
      */
     private void sendAESkeyEnc() {
@@ -192,7 +192,7 @@ public class Pubsub implements Runnable {
         }
     }
 
-    //TODO change this to sending to the main chat encrypted with the rsa keys of each person insted of trying to send to private room. We removed private rooms
+    //TODO change this to sending to the main chat encrypted with the rsa keys of each person instead of trying to send to private room. We removed private rooms
     private void sendRSAkey() {
         try {
             for (String user : users.keySet()) {

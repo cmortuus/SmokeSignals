@@ -14,50 +14,51 @@ public class User {
     private static HashMap<String, Pubsub> rooms;
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
-    //    TODO eventaully change this from one large file to one file that is for your username or aliasis
+    //    TODO eventually change this from one large file to one file that is for your username or aliases
     //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
     User(String user) throws IOException {
         userName = user;
         rooms = new HashMap<>();
 
-//       Create the file or open it
+        // Create the file or open it
         File file = new File("users.txt");
         FileWriter fw = new FileWriter(file, true);
 
         try (Scanner scnr = new Scanner(new File("users.txt"))) {
-            if (!scnr.hasNextLine()) {
-                SecureRandom rand = new SecureRandom();
-                int nums = 0;
-                while (nums <= 100000)
-                    nums = rand.nextInt(1000000);
-                userName = user + '#' + nums;
-                fw.append(userName);
-                fw.append("\n");
-                System.out.println(userName);
-                fw.flush();
+            if (!scnr.hasNextLine()) { // the file is empty
 
-            } else {
-                boolean check = false;
+                // generate the random discriminator between max and min
+                int min = 100000;
+                int max = 1000000;
+                int nums = new SecureRandom().nextInt((max - min) + 1) + min;
+
+                userName = user + '#' + nums;
+                fw.append(userName).append("\n");
+                System.out.println(userName);
+                fw.close();
+
+            } else { // the file has content already stored in it
+
+                // check if the file contains the specified username
                 String tempLine;
                 while (scnr.hasNextLine()) {
                     tempLine = scnr.nextLine();
-                    if ((tempLine.split("#")[0].equals(user))) {
+                    if (tempLine.split("#",2)[0].equals(user)) {
                         userName = tempLine;
-                        check = true;
+                        fw.close();
+                        return;
                     }
                 }
 
-                if (!check) {
-                    SecureRandom rand = new SecureRandom();
-                    int nums = 0;
-                    while (nums <= 100000)
-                        nums = rand.nextInt(1000000);
-                    userName = user + '#' + nums;
-                    fw.append(userName);
-                    fw.append("\n");
-                    System.out.println(userName);
-                    fw.flush();
-                }
+                // generate the random discriminator between max and min
+                int min = 100000;
+                int max = 1000000;
+                int nums = new SecureRandom().nextInt((max - min) + 1) + min;
+
+                userName = user + '#' + nums;
+                fw.append(userName).append("\n");
+                System.out.println(userName);
+                fw.close();
             }
         }
     }
@@ -68,6 +69,11 @@ public class User {
      * @param otherUser The username of the other person who is in the room with you This is needed to create the roomname
      */
     void createRoom(String otherUser) {
+
+        if (!isValidUserFormat(otherUser)) {
+            //TODO: Deal with situation when the input does not contain a valid username#discriminator
+        }
+
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
             String roomName = turnUsersToRoom(userName);
@@ -131,5 +137,14 @@ public class User {
             s[i++] = user;
         Arrays.sort(s);
         return String.join("", s).replace('#', 'z');
+    }
+
+    /**
+     * Checks if the passed string is properly formatted as username#discriminator
+     * @param username name to check
+     * @return true if the format is valid
+     */
+    private boolean isValidUserFormat(String username) {
+        return username.matches("(.+#[0-9]+)");
     }
 }

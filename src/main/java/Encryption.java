@@ -7,12 +7,12 @@ import java.security.*;
 import java.util.Base64;
 
 class Encryption {
-    //    TODO dont store these in plain text
+    //    TODO don't store these in plain text
     private static Cipher rsaCipher;
     private static final int RSA_KEY_LENGTH = 4096;
     private static final String ALGORITHM_NAME = "RSA";
 
-    //    Defines the ciphar var with a try catch
+    //    Defines the cipher var with a try catch
     static {
         try {
             rsaCipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
