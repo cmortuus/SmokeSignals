@@ -14,7 +14,7 @@ public class IPFSnonPubsub {
     /**
      * adds file to IPFS and pins it and returns hash
      *
-     * @param filename
+     * @param filename location of the file that needs to be uploaded
      * @return hash of the file that gets uploaded, Null if fails open the file.
      */
     static Multihash addFile(String filename) {
@@ -35,8 +35,8 @@ public class IPFSnonPubsub {
     /**
      * Uploads a list of files. Pins them and then returns all the hashes
      *
-     * @param filename
-     * @return
+     * @param filename array of filenames that need to be uploaded
+     * @return The hashes of the uploaded files
      */
     static ArrayList<Multihash> addFile(String[] filename) {
         try {
@@ -57,8 +57,8 @@ public class IPFSnonPubsub {
     /**
      * Download file from hash
      *
-     * @param hash
-     * @return
+     * @param hash the identifiers of the files that need to be downloaded
+     * @return the byte array that is the file
      */
     static byte[] getFile(Multihash hash) {
         try {
@@ -72,8 +72,8 @@ public class IPFSnonPubsub {
     /**
      * Download list of files. Returns in form of bytes. if it fails than it returns null
      *
-     * @param hashes
-     * @return
+     * @param hashes the identifiers of the files that need to be downloaded
+     * @return Arraylist the byte arrays that are files
      */
     public static ArrayList<byte[]> getFile(Multihash[] hashes) {
         try {

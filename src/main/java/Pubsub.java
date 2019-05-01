@@ -3,6 +3,7 @@ import io.ipfs.multiaddr.MultiAddress;
 import io.ipfs.multihash.Multihash;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -70,8 +71,6 @@ public class Pubsub implements Runnable {
 //        Needs two try catches because the tey statement that buffered writer is in does not account for the IOException that FileWriter will throw
         try {
             File file = new File(roomName);
-            if (!file.exists() && saveMessage)
-                file.createNewFile();
             try (FileWriter fw = new FileWriter(file, true)) {
 //                Write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
@@ -117,20 +116,22 @@ public class Pubsub implements Runnable {
                             fw.flush();
                         } else if (timeAndMessage[2].endsWith("1") && decryptedMessage.equals(ipfsID.trim())) {
                             setAsSeen(Long.parseLong(timeAndMessage[0]), users.get(timeAndMessage[1]));
-                        } else if (timeAndMessage[2].endsWith("2")) {
-                            try {
-                                byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
-                                PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
-                                publicKeys.add(publicKey);
-                                if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
-                                    sendRSAkey();
-                                    sendAESkeyEnc();
-                                }
-                            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                                e.printStackTrace();
+                            byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
+                            PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
+                            publicKeys.add(publicKey);
+                            if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
+                                sendRSAkey();
+                                sendAESkeyEnc();
                             }
+                        } else if (timeAndMessage[3].endsWith("3")) {
+                            secretKeys.add(new SecretKeySpec(timeAndMessage[3].getBytes(), 0, timeAndMessage[3].getBytes().length, "AES"));
+                        } else if (timeAndMessage[3].endsWith("4")) {
+                            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(timeAndMessage[3].getBytes());
+                            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                            PublicKey pubKey = keyFactory.generatePublic(keySpec);
+                            publicKeys.add(pubKey);
                         }
-                    } catch (IOException | NullPointerException e) {
+                    } catch (IOException | NullPointerException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                         e.printStackTrace();
                     }
                 });
@@ -199,11 +200,15 @@ public class Pubsub implements Runnable {
     }
 
     //TODO change this to sending to the main chat encrypted with the rsa keys of each person instead of trying to send to private room. We removed private rooms
+
+    /**
+     * Send the public rsa key to the chat
+     */
     private void sendRSAkey() {
         try {
             for (String user : users.keySet()) {
                 if (ipfs.pubsub.peers(user).toString().split(",").length != users.size()) {
-                    writeToPubsub(String.valueOf(publicKey), 3);
+                    writeToPubsub(String.valueOf(publicKey), 4);
                 } else {
                     throw new SecurityException("Someone else is in the chat while we are trying to send the rsa key to their private chat");
                 }
