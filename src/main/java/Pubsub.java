@@ -91,31 +91,35 @@ public class Pubsub implements Runnable {
 //                        For some reason it removes the +s and adds spaces which throw errors because that is not a thing in an aes string
                         String decodedString = new String(decodedBytes).replaceAll(" ", "+");
                         String decryptedMessage = Encryption.decrypt(decodedString, aesKey);
-                        String[] timeAndMessage = decryptedMessage.split("\\*", 3);
+                        String[] timeAndMessage = decryptedMessage.split("\\*", 4);
 
+                        // Print out message. For some reason when you do it in one print statement it hangs with no error message
                         StringBuilder sb = new StringBuilder();
-//                        Print out message. For some reason when you do it in one print statement it hangs with no error message
                         for (int i = 0; i < timeAndMessage.length; i++) {
-                            if (i == 0) {
-                                sb.append(getTime(timeAndMessage[0]));
-                                sb.append(",");
-                            } else if (i == 2) {
-                                sb.append(timeAndMessage[i], 0, timeAndMessage[2].length() - 1);
-                                sb.append(",");
-                            } else {
-                                sb.append(timeAndMessage[i].split("#")[0]);
-                                sb.append(",");
+                            switch (i) {
+                                case 0:
+                                    sb.append(timeAndMessage[i]).append(",");
+                                    break;
+                                case 1:
+                                    sb.append(getTime(timeAndMessage[i])).append(",");
+                                    break;
+                                case 2:
+                                    sb.append(timeAndMessage[i].split("#",2)[0]).append(",");
+                                    break;
+                                case 3:
+                                    sb.append(timeAndMessage[i], 0, timeAndMessage[i].length()-1).append(",");
+                                    break;
                             }
                         }
                         System.out.println(sb.toString().replaceAll(",", "  "));
+
                         addMessage(timeAndMessage);
                         String ipfsID = ipfs.refs.local().toArray()[1].toString();
-                        addMessage(timeAndMessage);
                         if (decryptedMessage.endsWith("0") && saveMessage) {
                             fw.write(sb.toString() + "\n");
                             fw.flush();
-                        } else if (timeAndMessage[2].endsWith("1") && decryptedMessage.equals(ipfsID.trim())) {
-                            setAsSeen(Long.parseLong(timeAndMessage[0]), users.get(timeAndMessage[1]));
+                        } else if (timeAndMessage[3].endsWith("1") && decryptedMessage.equals(ipfsID.trim())) {
+                            setAsSeen(Long.parseLong(timeAndMessage[1]));
                             byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
                             PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
                             publicKeys.add(publicKey);
@@ -146,21 +150,26 @@ public class Pubsub implements Runnable {
     /**
      * Adds message to memory where we are temp storing it. Sending it to file is elsewhere
      *
-     * @param decryptedMessage Array of all the parts of a decrypted message. 0 is time stamp. 1 is username. 2 is text.
+     * @param decryptedMessage Array of all the parts of a decrypted message. index 0 = message id, 1 = timestamp, 2 = username, 3 = message content
      */
     private void addMessage(String[] decryptedMessage) {
-        if (decryptedMessage.length != 3)
-            throw new IllegalArgumentException("decryptedMessage is length "+decryptedMessage.length+" when it should be length 3");
-        try {
-            long timestamp = Long.valueOf(decryptedMessage[0]);
-            String username = decryptedMessage[1];
-            String content = decryptedMessage[2];
-            // strip trailing identifier from content
-            content = content.substring(0, content.length() - 1);
-            messages.add(new Message(timestamp, username, content, false));
+        if (decryptedMessage.length != 4)
+            throw new IllegalArgumentException("decryptedMessage is length "+decryptedMessage.length+" when it should be length 4");
+
+        long messageId, timestamp;
+        String username = decryptedMessage[2];
+        String content = decryptedMessage[3];
+        // strip trailing identifier from content
+        content = content.substring(0, content.length() - 1);
+
+        try { messageId = Long.parseLong(decryptedMessage[0]);
         } catch (NumberFormatException nfe) {
-            throw new IllegalArgumentException("cannot parse timestamp long from \""+decryptedMessage[0]+"\"");
-        }
+            throw new IllegalArgumentException("cannot parse message id (long) from \""+decryptedMessage[0]+"\""); }
+        try { timestamp = Long.parseLong(decryptedMessage[1]);
+        } catch (NumberFormatException nfe) {
+            throw new IllegalArgumentException("cannot parse timestamp long from \""+decryptedMessage[1]+"\""); }
+
+        messages.add(new Message(messageId, timestamp, username, content, false));
     }
 
     /**
@@ -255,16 +264,17 @@ public class Pubsub implements Runnable {
         }
     }
 
-
     /**
-     * Set latest message by the person who's hash is passed in as read
+     * Marks the specified message as read
      *
-     * @param timeOfText the time the text was sent which is the key used to look up the message in the messages adt
-     * @param hash       of the user who has seen the message
+     * @param messageId message id of the message to be marked as read
      */
-    private void setAsSeen(long timeOfText, String hash) {
-//        HashMap<String, HashMap<String, HashMap<String, Boolean>>> message = new HashMap<>();
-//        messages.put();
+    private void setAsSeen(long messageId) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i).getMessageId() == messageId) {
+                messages.get(i).editSeen(true);
+            }
+        }
     }
 
     private void closeApp() {

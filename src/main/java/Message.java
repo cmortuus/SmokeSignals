@@ -5,17 +5,22 @@ import java.sql.Timestamp;
  */
 public class Message {
 
+    private long messageId;
     private long timestamp;
     private String author;
     private String content;
     private boolean seen;
-    //private long messageId; //TODO: implement this
 
-    public Message(long timestamp, String author, String content, boolean seen) {
+    public Message(long messageId, long timestamp, String author, String content, boolean seen) {
         this.timestamp = timestamp;
         this.author = author;
         this.content = content;
         this.seen = seen;
+        this.messageId = messageId;
+    }
+
+    public long getMessageId() {
+        return messageId;
     }
 
     public long getReceivedLong() {
