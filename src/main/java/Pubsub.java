@@ -80,7 +80,7 @@ public class Pubsub implements Runnable {
                             try {
                                 while (numUsersFound < users.size()) {
                                     writeToPubsub("username", 4);
-                                    Thread.sleep(1000);
+                                    Thread.sleep(100);
                                 }
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
@@ -104,10 +104,10 @@ public class Pubsub implements Runnable {
                                     sb.append(getTime(timeAndMessage[i])).append(",");
                                     break;
                                 case 2:
-                                    sb.append(timeAndMessage[i].split("#",2)[0]).append(",");
+                                    sb.append(timeAndMessage[i].split("#", 3)[0]).append(",");
                                     break;
                                 case 3:
-                                    sb.append(timeAndMessage[i], 0, timeAndMessage[i].length()-1).append(",");
+                                    sb.append(timeAndMessage[i], 0, timeAndMessage[i].length() - 1).append(",");
                                     break;
                             }
                         }
@@ -144,7 +144,6 @@ public class Pubsub implements Runnable {
                 IOException e) {
             e.printStackTrace();
         }
-
     }
 
     /**
@@ -154,7 +153,7 @@ public class Pubsub implements Runnable {
      */
     private void addMessage(String[] decryptedMessage) {
         if (decryptedMessage.length != 4)
-            throw new IllegalArgumentException("decryptedMessage is length "+decryptedMessage.length+" when it should be length 4");
+            throw new IllegalArgumentException("decryptedMessage is length " + decryptedMessage.length + " when it should be length 4");
 
         long messageId, timestamp;
         String username = decryptedMessage[2];
@@ -162,12 +161,16 @@ public class Pubsub implements Runnable {
         // strip trailing identifier from content
         content = content.substring(0, content.length() - 1);
 
-        try { messageId = Long.parseLong(decryptedMessage[0]);
+        try {
+            messageId = Long.parseLong(decryptedMessage[0]);
         } catch (NumberFormatException nfe) {
-            throw new IllegalArgumentException("cannot parse message id (long) from \""+decryptedMessage[0]+"\""); }
-        try { timestamp = Long.parseLong(decryptedMessage[1]);
+            throw new IllegalArgumentException("cannot parse message id (long) from \"" + decryptedMessage[0] + "\"");
+        }
+        try {
+            timestamp = Long.parseLong(decryptedMessage[1]);
         } catch (NumberFormatException nfe) {
-            throw new IllegalArgumentException("cannot parse timestamp long from \""+decryptedMessage[1]+"\""); }
+            throw new IllegalArgumentException("cannot parse timestamp long from \"" + decryptedMessage[1] + "\"");
+        }
 
         messages.add(new Message(messageId, timestamp, username, content, false));
     }
@@ -236,7 +239,8 @@ public class Pubsub implements Runnable {
      */
     void writeToPubsub(String phrase, int delimiter) {
         try {
-            String encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
+            Long time = System.currentTimeMillis();
+            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
 //            It breaks if you take this out
             Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(this.roomName, encPhrase);
@@ -255,7 +259,8 @@ public class Pubsub implements Runnable {
      */
     void writeToPubsub(String roomName, String phrase, short delimiter) {
         try {
-            String encPhrase = Encryption.encrypt(System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
+            Long time = System.currentTimeMillis();
+            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
 //            It breaks if you take this out
             Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(roomName, encPhrase);
