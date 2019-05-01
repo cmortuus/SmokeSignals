@@ -28,6 +28,11 @@ import java.util.stream.Stream;
 //TODO make sure that people can see the message when it is not writing to a file
 //TODO send message when you go online and then when the app closes send message that you are offline when you come online everyone tells you if they are online everything else is assumed offline
 //TODO write method to pull messages from the file after app has been closed
+//TODO implament parental controls
+//TODO work on socaial media part of it
+//TODO when a comment is added resend the post and have that overwrite the orraginal post in people's timeline
+//TODO figure out how to do *Eco is typing* Probably just send a message ahead of time
+//TODO find a way to do num mutual friends
 public class Pubsub implements Runnable {
     private boolean saveMessage;
     private Stream<Map<String, Object>> room;
@@ -40,6 +45,7 @@ public class Pubsub implements Runnable {
     private SecretKey aesKey;
     private int numUsersFound;
     private ArrayList<Message> messages;
+    private ArrayList<OtherUser> usersInRoom;
 
     Pubsub(String roomName, Boolean saveMessage) {
         try {
@@ -54,6 +60,7 @@ public class Pubsub implements Runnable {
             privateKey = keypair.getPrivate();
             aesKey = Encryption.generateAESkey();
             messages = new ArrayList<>();
+            usersInRoom = new ArrayList<>();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -109,27 +116,30 @@ public class Pubsub implements Runnable {
                             }
                         }
                         System.out.println(sb.toString().replaceAll(",", "  "));
-
+                        String textSent = timeAndMessage[3];
                         addMessage(timeAndMessage);
                         if (decryptedMessage.endsWith("0") && saveMessage) {
                             fw.write(sb.toString() + "\n");
                             fw.flush();
-                        } else if (timeAndMessage[3].endsWith("1") && decryptedMessage.equals(IPFSnonPubsub.ipfsID)) {
+                        } else if (textSent.endsWith("1") && decryptedMessage.equals(IPFSnonPubsub.ipfsID)) {
                             setAsSeen(Long.parseLong(timeAndMessage[1]));
                             byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
                             PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
                             User.publicKeys.add(publicKey);
+//                            TODO create user object and add it to the list for the room and for user
                             if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
                                 sendRSAkey();
                                 sendAESkeyEnc();
                             }
-                        } else if (timeAndMessage[3].endsWith("3")) {
-                            User.secretKeys.add(new SecretKeySpec(timeAndMessage[3].getBytes(), 0, timeAndMessage[3].getBytes().length, "AES"));
-                        } else if (timeAndMessage[3].endsWith("4")) {
-                            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(timeAndMessage[3].getBytes());
+                        } else if (textSent.endsWith("3")) {
+                            User.secretKeys.add(new SecretKeySpec(textSent.getBytes(), 0, textSent.getBytes().length, "AES"));
+                        } else if (textSent.endsWith("4")) {
+                            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(textSent.getBytes());
                             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                             PublicKey pubKey = keyFactory.generatePublic(keySpec);
                             User.publicKeys.add(pubKey);
+                        } else if (textSent.endsWith("5")){
+                            SocialMediaFeed.posts.put(Long.parseLong(textSent.split("#")[0]), new Post(timeAndMessage));
                         }
                     } catch (IOException | NullPointerException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                         e.printStackTrace();
@@ -234,7 +244,7 @@ public class Pubsub implements Runnable {
     void writeToPubsub(String phrase, int delimiter) {
         try {
             Long time = System.currentTimeMillis();
-            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
+            String encPhrase = Encryption.encrypt((phrase.hashCode() + time) + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
 //            It breaks if you take this out
             Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(this.roomName, encPhrase);
@@ -251,7 +261,7 @@ public class Pubsub implements Runnable {
      * @param phrase    The phrase to be encrypted and then sent
      * @param delimiter tells the program what to do with the message. 0 is read the message to the user. 1 is it is a read response. 2 is sending of an rsa key. 3 is an aes key. Just sending username for
      */
-    void writeToPubsub(String roomName, String phrase, short delimiter) {
+    void writeToPubsub(String roomName, String phrase, int delimiter) {
         try {
             Long time = System.currentTimeMillis();
             String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);

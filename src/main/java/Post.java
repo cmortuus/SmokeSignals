@@ -1,11 +1,13 @@
 import java.util.ArrayList;
-
-public class Post extends Message {
+public class Post {
     ArrayList<Message> comments;
+    ArrayList<String> likes;
+    ArrayList<String> views;
 
-    Post(long postID, long timestamp, String author, String content, boolean seen){
-        super(postID, timestamp, author, content, seen);
+    Post(String[] message){
         comments = new ArrayList<>();
     }
+
+
 
 }

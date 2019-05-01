@@ -17,6 +17,7 @@ class User {
     private static HashMap<String, Pubsub> rooms;
     static ArrayList<SecretKey> secretKeys;
     static ArrayList<PublicKey> publicKeys;
+    static ArrayList<OtherUser> otherUsers;
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventually change this from one large file to one file that is for your username or aliases
     //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
@@ -25,6 +26,7 @@ class User {
         rooms = new HashMap<>();
         publicKeys = new ArrayList<>();
         secretKeys = new ArrayList<>();
+        otherUsers = new ArrayList<OtherUser>();
 
         // Create the file or open it
         File file = new File("users.txt");
