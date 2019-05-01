@@ -17,7 +17,7 @@ public class IPFSnonPubsub {
      * @param filename
      * @return hash of the file that gets uploaded, Null if fails open the file.
      */
-    public static Multihash addFile(String filename) {
+    static Multihash addFile(String filename) {
         try {
             File f = new File(filename);
             if (!f.exists())
@@ -38,7 +38,7 @@ public class IPFSnonPubsub {
      * @param filename
      * @return
      */
-    public static ArrayList<Multihash> addFile(String[] filename) {
+    static ArrayList<Multihash> addFile(String[] filename) {
         try {
             ArrayList<Multihash> hashes = new ArrayList<>();
             for (String f : filename) {
@@ -60,7 +60,7 @@ public class IPFSnonPubsub {
      * @param hash
      * @return
      */
-    public static byte[] getFile(Multihash hash) {
+    static byte[] getFile(Multihash hash) {
         try {
             return ipfs.cat(hash);
         } catch (IOException e) {
