@@ -40,8 +40,7 @@ public class Pubsub implements Runnable {
     private PublicKey publicKey;
     private SecretKey aesKey;
     private int numUsersFound;
-    //          Time ID       Username        Message isRead
-    HashMap<Long, HashMap<String, HashMap<String, Boolean>>> messages;
+    private ArrayList<Message> messages;
 
     Pubsub(String roomName, Boolean saveMessage) {
         try {
@@ -55,7 +54,7 @@ public class Pubsub implements Runnable {
             publicKey = keypair.getPublic();
             privateKey = keypair.getPrivate();
             aesKey = Encryption.generateAESkey();
-            messages = new HashMap<>();
+            messages = new ArrayList<>();
             secretKeys = new ArrayList<>();
         } catch (Exception e) {
             e.printStackTrace();
@@ -149,15 +148,22 @@ public class Pubsub implements Runnable {
      * @param decryptedMessage Array of all the parts of a decrypted message. 0 is time stamp. 1 is username. 2 is text.
      */
     private void addMessage(String[] decryptedMessage) {
-        HashMap<String, Boolean> messageAndSeen = new HashMap<>();
-        messageAndSeen.put((decryptedMessage[2].substring(0, decryptedMessage[2].length() - 1)), false);
-        HashMap<String, HashMap<String, Boolean>> outerHashmap = new HashMap<>();
-        outerHashmap.put(users.get(decryptedMessage[0]), messageAndSeen);
-        messages.put(Long.parseLong(decryptedMessage[0]), outerHashmap);
+        if (decryptedMessage.length != 3)
+            throw new IllegalArgumentException("decryptedMessage is length "+decryptedMessage.length+" when it should be length 3");
+        try {
+            long timestamp = Long.valueOf(decryptedMessage[0]);
+            String username = decryptedMessage[1];
+            String content = decryptedMessage[2];
+            // strip trailing identifier from content
+            content = content.substring(0, content.length() - 1);
+            messages.add(new Message(timestamp, username, content, false));
+        } catch (NumberFormatException nfe) {
+            throw new IllegalArgumentException("cannot parse timestamp long from \""+decryptedMessage[0]+"\"");
+        }
     }
 
     /**
-     * Turns the epoc time sent in the message to human readable time
+     * Turns the epoch time sent in the message to human readable time
      * At some point this will have to be related to current time. ie 20 min ago
      *
      * @param time The Epoch time that the message was sent at
