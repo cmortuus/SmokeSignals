@@ -9,7 +9,17 @@ import java.util.ArrayList;
 
 public class IPFSnonPubsub {
 
-    private static IPFS ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
+    static IPFS ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
+
+    static String ipfsID;
+
+    static {
+        try {
+            ipfsID = IPFSnonPubsub.ipfs.id().toString().split("(,|=)", 3)[1];
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * adds file to IPFS and pins it and returns hash

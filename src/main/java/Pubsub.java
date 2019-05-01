@@ -35,8 +35,6 @@ public class Pubsub implements Runnable {
     private IPFS ipfs;
     //    Username and hash
     private HashMap<String, String> users;
-    private ArrayList<PublicKey> publicKeys;
-    private ArrayList<SecretKey> secretKeys;
     private PrivateKey privateKey;
     private PublicKey publicKey;
     private SecretKey aesKey;
@@ -56,7 +54,6 @@ public class Pubsub implements Runnable {
             privateKey = keypair.getPrivate();
             aesKey = Encryption.generateAESkey();
             messages = new ArrayList<>();
-            secretKeys = new ArrayList<>();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -114,34 +111,32 @@ public class Pubsub implements Runnable {
                         System.out.println(sb.toString().replaceAll(",", "  "));
 
                         addMessage(timeAndMessage);
-                        String ipfsID = ipfs.refs.local().toArray()[1].toString();
                         if (decryptedMessage.endsWith("0") && saveMessage) {
                             fw.write(sb.toString() + "\n");
                             fw.flush();
-                        } else if (timeAndMessage[3].endsWith("1") && decryptedMessage.equals(ipfsID.trim())) {
+                        } else if (timeAndMessage[3].endsWith("1") && decryptedMessage.equals(IPFSnonPubsub.ipfsID)) {
                             setAsSeen(Long.parseLong(timeAndMessage[1]));
                             byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
                             PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
-                            publicKeys.add(publicKey);
+                            User.publicKeys.add(publicKey);
                             if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
                                 sendRSAkey();
                                 sendAESkeyEnc();
                             }
                         } else if (timeAndMessage[3].endsWith("3")) {
-                            secretKeys.add(new SecretKeySpec(timeAndMessage[3].getBytes(), 0, timeAndMessage[3].getBytes().length, "AES"));
+                            User.secretKeys.add(new SecretKeySpec(timeAndMessage[3].getBytes(), 0, timeAndMessage[3].getBytes().length, "AES"));
                         } else if (timeAndMessage[3].endsWith("4")) {
                             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(timeAndMessage[3].getBytes());
                             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                             PublicKey pubKey = keyFactory.generatePublic(keySpec);
-                            publicKeys.add(pubKey);
+                            User.publicKeys.add(pubKey);
                         }
                     } catch (IOException | NullPointerException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                         e.printStackTrace();
                     }
                 });
             }
-        } catch (
-                IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -219,11 +214,10 @@ public class Pubsub implements Runnable {
     private void sendRSAkey() {
         try {
             for (String user : users.keySet()) {
-                if (ipfs.pubsub.peers(user).toString().split(",").length != users.size()) {
+                if (ipfs.pubsub.peers(user).toString().split(",").length != users.size())
                     writeToPubsub(String.valueOf(publicKey), 4);
-                } else {
+                else
                     throw new SecurityException("Someone else is in the chat while we are trying to send the rsa key to their private chat");
-                }
             }
         } catch (Exception e) {
             e.printStackTrace();

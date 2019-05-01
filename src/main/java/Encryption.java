@@ -2,6 +2,7 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Base64;
@@ -96,10 +97,12 @@ class Encryption {
      * @param encryptedKey
      * @return
      */
-    static byte[] decrypteAESkeyWithRSA(byte[] encryptedKey, PrivateKey privateKey) {
+    static SecretKey decrypteAESkeyWithRSA(byte[] encryptedKey, PrivateKey privateKey) {
         try {
             rsaCipher.init(Cipher.PRIVATE_KEY, privateKey);
-            return rsaCipher.doFinal(encryptedKey);
+            byte[] aesKey = rsaCipher.doFinal(encryptedKey);
+            SecretKey secretKey = new SecretKeySpec(aesKey, 0, aesKey.length, "AES");
+            return secretKey;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
