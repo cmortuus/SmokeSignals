@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 //TODO when a comment is added resend the post and have that overwrite the orraginal post in people's timeline
 //TODO figure out how to do *Eco is typing* Probably just send a message ahead of time
 //TODO find a way to do num mutual friends
+//TODO build in emoji support
 public class Pubsub implements Runnable {
     private boolean saveMessage;
     private Stream<Map<String, Object>> room;
@@ -75,6 +76,8 @@ public class Pubsub implements Runnable {
 //        Needs two try catches because the tey statement that buffered writer is in does not account for the IOException that FileWriter will throw
         try {
             File file = new File(roomName);
+            if(!file.exists())
+                file.createNewFile();
             try (FileWriter fw = new FileWriter(file, true)) {
 //                Write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
@@ -216,8 +219,6 @@ public class Pubsub implements Runnable {
         }
     }
 
-    //TODO change this to sending to the main chat encrypted with the rsa keys of each person instead of trying to send to private room. We removed private rooms
-
     /**
      * Send the public rsa key to the chat
      */
@@ -246,7 +247,7 @@ public class Pubsub implements Runnable {
             Long time = System.currentTimeMillis();
             String encPhrase = Encryption.encrypt((phrase.hashCode() + time) + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
 //            It breaks if you take this out
-            Encryption.decrypt(encPhrase, aesKey);
+//            Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(this.roomName, encPhrase);
         } catch (Exception e) {
             e.printStackTrace();
@@ -266,7 +267,7 @@ public class Pubsub implements Runnable {
             Long time = System.currentTimeMillis();
             String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
 //            It breaks if you take this out
-            Encryption.decrypt(encPhrase, aesKey);
+//            Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(roomName, encPhrase);
         } catch (Exception e) {
             e.printStackTrace();

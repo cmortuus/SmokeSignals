@@ -1,17 +1,21 @@
 public class main {
-
-
     public static void main(String[] args) {
         SocialMediaFeed socialMediaFeed = new SocialMediaFeed();
         String mainUser = "Caleb";
-        String otherUser = "Christian";
+        String[] otherUsers = {"Christian#234234", "Mathiew#123456"};
         try {
             if (!mainUser.matches("\\D\\W")) {
                 User Caleb = new User(mainUser);
-                if (!otherUser.matches("\\D\\W")) {
-                    Caleb.createRoom(otherUser);
-                } else {
-                    System.out.println("Chose a new other username. You cannot have special chars");
+                for(String otherUser : otherUsers) {
+                    if (!otherUser.matches("\\D\\W")) {
+                        if (User.isValidUserFormat(otherUser)) {
+                            Caleb.createRoom(otherUser);
+                        }else{
+                            System.out.println("That username does not mathch the form uname#123456");
+                        }
+                    } else {
+                        System.out.println("Chose a new other username. You cannot have special chars");
+                    }
                 }
             } else {
                 System.out.println("Chose a new main username. You cannot have special chars");

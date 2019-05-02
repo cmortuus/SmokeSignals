@@ -34,7 +34,6 @@ class User {
 
         try (Scanner scnr = new Scanner(new File("users.txt"))) {
             if (!scnr.hasNextLine()) { // the file is empty
-
                 // generate the random discriminator between max and min
                 int min = 100000;
                 int max = 1000000;
@@ -77,23 +76,19 @@ class User {
      * @param otherUser The username of the other person who is in the room with you This is needed to create the roomname
      */
     void createRoom(String otherUser) {
-
-        if (!isValidUserFormat(otherUser)) {
-            //TODO: Deal with situation when the input does not contain a valid username#discriminator
-        }
-
-        try {
-            ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
-            String roomName = turnUsersToRoom(userName);
-            rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
-//            Add new user to the arraylist in pubsub and then send that to
-//            rooms.get(roomName).users.put(otherUser, null);
-//            Test the room
-            executorService.submit(rooms.get(roomName));
-            rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
-            rooms.get(roomName).writeToPubsub("hello", 0);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (isValidUserFormat(otherUser)) {
+            try {
+                ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
+                String roomName = turnUsersToRoom(userName);
+                rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
+                executorService.submit(rooms.get(roomName));
+                rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
+                rooms.get(roomName).writeToPubsub("hello", 0);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }else{
+            System.out.println("The username was of an invalid format");
         }
     }
 
@@ -152,7 +147,7 @@ class User {
      * @param username name to check
      * @return true if the format is valid
      */
-    private boolean isValidUserFormat(String username) {
+    static boolean isValidUserFormat(String username) {
         return username.matches("(.+#[0-9]+)");
     }
 }

@@ -7,7 +7,4 @@ public class Post {
     Post(String[] message){
         comments = new ArrayList<>();
     }
-
-
-
 }
