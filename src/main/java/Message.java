@@ -9,14 +9,16 @@ public class Message {
     private long timestamp;
     private String author;
     private String content;
+    private MessageType type;
     private boolean seen;
 
-    public Message(long messageId, long timestamp, String author, String content, boolean seen) {
+    public Message(long messageId, long timestamp, String author, String content, MessageType type, boolean seen) {
+        this.messageId = messageId;
         this.timestamp = timestamp;
         this.author = author;
         this.content = content;
+        this.type = type;
         this.seen = seen;
-        this.messageId = messageId;
     }
 
     public long getMessageId() {
@@ -37,6 +39,10 @@ public class Message {
 
     public String getContent() {
         return content;
+    }
+
+    public MessageType getMessageType() {
+        return type;
     }
 
     public boolean hasBeenSeen() {

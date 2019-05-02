@@ -2,7 +2,6 @@ import javax.crypto.SecretKey;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,8 +15,7 @@ class User {
 
     private String userName;
     private HashMap<String, Pubsub> rooms;
-    private ArrayList<SecretKey> secretKeys;
-    private ArrayList<PublicKey> publicKeys;
+    private HashMap<String, SecretKey> secretKeys;
     private ArrayList<OtherUser> otherUsers;
     private ExecutorService executorService;
 
@@ -28,8 +26,7 @@ class User {
 
         userName = user;
         rooms = new HashMap<>();
-        publicKeys = new ArrayList<>();
-        secretKeys = new ArrayList<>();
+        secretKeys = new HashMap<>();
         otherUsers = new ArrayList<>();
         executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
 
@@ -79,12 +76,12 @@ class User {
         return userName;
     }
 
-    public void addSecretKey(SecretKey key) {
-        secretKeys.add(key);
+    public void addSecretKey(String associatedUser, SecretKey key) {
+        secretKeys.put(associatedUser, key);
     }
 
-    public void addPublicKey(PublicKey key) {
-        publicKeys.add(key);
+    public SecretKey getUserAesKey(String user) {
+        return secretKeys.get(user);
     }
 
     public ArrayList<OtherUser> getOtherUsers() {
@@ -99,12 +96,12 @@ class User {
     void createRoom(String otherUser) {
         if (isValidUserFormat(otherUser)) {
             try {
-                String roomName = turnUsersToRoom(userName);
+                String roomName = turnUsersToRoom(otherUser);
                 rooms.put(roomName, new Pubsub(this, roomName, true));
                 executorService.submit(rooms.get(roomName));
                 while (true) {
-                    rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
-                    rooms.get(roomName).writeToPubsub("hello", 0);
+                    rooms.get(roomName).sendMessage("1123*1231*2312*3123");
+                    rooms.get(roomName).sendMessage("hello");
                     Thread.sleep(100);
                 }
             } catch (Exception e) {
@@ -129,8 +126,8 @@ class User {
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
             executorService.submit(rooms.get(roomName));
-                rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
-                rooms.get(roomName).writeToPubsub("hello", 0);
+                rooms.get(roomName).sendMessage("1123*1231*2312*3123");
+                rooms.get(roomName).sendMessage("hello");
         }catch (Exception e) {
             e.printStackTrace();
         }
@@ -148,7 +145,7 @@ class User {
     public void sendToRoom(String roomName, String message) {
         if (!rooms.containsKey(roomName))
             throw new IllegalArgumentException("room does not exist");
-        rooms.get(roomName).writeToPubsub(message, 0);
+        rooms.get(roomName).sendMessage(message);
     }
 
     /**

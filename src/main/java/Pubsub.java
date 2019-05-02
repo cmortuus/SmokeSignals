@@ -1,7 +1,8 @@
 import io.ipfs.api.IPFS;
 import io.ipfs.multiaddr.MultiAddress;
-import io.ipfs.multihash.Multihash;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
@@ -49,8 +50,10 @@ public class Pubsub implements Runnable {
     private int numUsersFound;
     private ArrayList<Message> messages;
     private ArrayList<OtherUser> usersInRoom;
+    private boolean ready;
 
     Pubsub(User yourself, String roomName, Boolean saveMessage) {
+        System.out.println("RoomName = " + roomName);
         try {
             this.yourself = yourself;
             this.saveMessage = saveMessage;
@@ -65,9 +68,21 @@ public class Pubsub implements Runnable {
             aesKey = Encryption.generateAESkey();
             messages = new ArrayList<>();
             usersInRoom = new ArrayList<>();
+            ready = false;
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Sends a message to the connected chat.
+     *
+     * @param message text to be sent into the chat
+     * @throws IllegalStateException if the method is called prior to connecting to the room
+     */
+    public void sendMessage(String message) {
+        if (!ready) throw new IllegalStateException("not connected to chat");
+        writeToPubsub(message, MessageType.PUBLIC);
     }
 
     /**
@@ -76,78 +91,119 @@ public class Pubsub implements Runnable {
      */
     @Override
     public void run() {
-//        Needs two try catches because the tey statement that buffered writer is in does not account for the IOException that FileWriter will throw
+//        Needs two try catches because the try statement that buffered writer is in does not account for the IOException that FileWriter will throw
+
         try {
             File file = new File(roomName);
-            if(!file.exists())
-                file.createNewFile();
+            if(!file.exists()) file.createNewFile();
             try (FileWriter fw = new FileWriter(file, true)) {
-//                Write out each line of the stream to a file and check if they are one of the users
+
+                // initialize
+                try { ipfs.pubsub.pub(roomName, createOutgoingRsaText());
+                } catch (Exception e) { e.printStackTrace(); }
+
+                // write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
                     try {
-                        String data = stringObjectMap.values().toString().split(",")[1].trim();
-                        Thread sendUsername = new Thread(() -> {
-                            try {
-                                while (numUsersFound < users.size()) {
-                                    writeToPubsub("username", 4);
-                                    Thread.sleep(100);
-                                }
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        });
-                        sendUsername.run();
-                        byte[] decodedBytes = Base64.getDecoder().decode(data);
+
+                        //TODO: do something with this
+//                        Thread sendUsername = new Thread(() -> {
+//                            try {
+//                                while (numUsersFound < users.size()) {
+//                                    writeToPubsub("username", MessageType.UNKNOWN);
+//                                    Thread.sleep(100);
+//                                }
+//                            } catch (InterruptedException e) {
+//                                e.printStackTrace();
+//                            }
+//                        });
+//                        sendUsername.run();
+
+                        String base64Data = stringObjectMap.values().toString().split(",")[1].trim();
+                        byte[] decodedBytes = Base64.getDecoder().decode(base64Data);
 //                        For some reason it removes the +s and adds spaces which throw errors because that is not a thing in an aes string
                         String decodedString = new String(decodedBytes).replaceAll(" ", "+");
-                        String decryptedMessage = Encryption.decrypt(decodedString, aesKey);
-                        String[] timeAndMessage = decryptedMessage.split("\\*", 4);
 
-                        // Print out message. For some reason when you do it in one print statement it hangs with no error message
-                        StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < timeAndMessage.length; i++) {
-                            switch (i) {
-                                case 0:
-                                    sb.append(timeAndMessage[i]).append(",");
-                                    break;
-                                case 1:
-                                    sb.append(getTime(timeAndMessage[i])).append(",");
-                                    break;
-                                case 2:
-                                    sb.append(timeAndMessage[i].split("#", 3)[0]).append(",");
-                                    break;
-                                case 3:
-                                    sb.append(timeAndMessage[i], 0, timeAndMessage[i].length() - 1).append(",");
-                                    break;
+                        //TODO: is there a better way to differentiate the sender?
+                        String sender = stringObjectMap.toString().split(",",2)[0].substring(6);
+
+                        SecretKey authorAesKey = yourself.getUserAesKey(sender);
+                        if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
+                            if (!isBase64(decodedString)) return;
+                            //TODO: verify that this is someone we actually want to perform a handshake with
+                            try { // stage 1
+                                System.out.println("[DEBUG] attempting handshake stage 1");
+                                PublicKey key = parseIncomingRsaText(decodedString);
+                                if (key == null) throw new Exception();
+                                //TODO: implement check to ensure no suspicious accounts are listening in
+                                ipfs.pubsub.pub(roomName, createOutgoingAesText(key));
+//                                    //TODO create user object and add it to the list for the room and for user
+//                                    if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
+                                System.out.println("[DEBUG] completed handshake stage 1");
+                            } catch (Exception ignore) { // stage 2
+                                System.out.println("[DEBUG] attempting handshake stage 2");
+                                try {
+                                    SecretKey key = parseIncomingAesKey(decodedString);
+                                    if (key == null) throw new Exception();
+                                    yourself.addSecretKey(sender, key);
+                                    ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded()), key));
+                                    ready = true;
+                                    System.out.println("[DEBUG] completed handshake stage 2");
+                                } catch (Exception ignore2) { // stage 3
+                                    System.out.println("[DEBUG] attempting handshake stage 3");
+                                    try {
+                                        String decrypted = Encryption.decrypt(decodedString, aesKey);
+                                        if (decrypted == null || !isBase64(decrypted)) return;
+                                        byte[] bytes = Base64.getDecoder().decode(decrypted);
+                                        SecretKey key = new SecretKeySpec(bytes, 0, bytes.length, "AES");
+                                        yourself.addSecretKey(sender, key);
+                                        System.out.println("[DEBUG] completed handshake stage 3");
+                                    } catch (Exception ignore3) {}
+                                }
                             }
+
+                            return;
                         }
-                        System.out.println(sb.toString().replaceAll(",", "  "));
-                        String textSent = timeAndMessage[3];
-                        addMessage(timeAndMessage);
-                        if (decryptedMessage.endsWith("0") && saveMessage) {
-                            fw.write(sb.toString() + "\n");
-                            fw.flush();
-                        } else if (textSent.endsWith("1") && decryptedMessage.equals(IPFSnonPubsub.ipfsID)) {
-                            setAsSeen(Long.parseLong(timeAndMessage[1]));
-                            byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
-                            PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
-                            yourself.addPublicKey(publicKey);
-//                            TODO create user object and add it to the list for the room and for user
-                            if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
-                                sendRSAkey();
-                                sendAESkeyEnc();
-                            }
-                        } else if (textSent.endsWith("3")) {
-                            yourself.addSecretKey(new SecretKeySpec(textSent.getBytes(), 0, textSent.getBytes().length, "AES"));
-                        } else if (textSent.endsWith("4")) {
-                            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(textSent.getBytes());
-                            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-                            PublicKey pubKey = keyFactory.generatePublic(keySpec);
-                            yourself.addPublicKey(pubKey);
-                        } else if (textSent.endsWith("5")){
-                            SocialMediaFeed.posts.put(Long.parseLong(textSent.split("#")[0]), new Post(timeAndMessage));
+
+                        String decryptedMessage = Encryption.decrypt(decodedString, authorAesKey);
+                        if (decryptedMessage == null) return; // abort if the message could not be decrypted
+                        String[] unparsedMessage = decryptedMessage.split("\\*", 4);
+                        if (unparsedMessage.length != 4) return; // abort if the message is not formatted correctly
+
+                        String stringyMessage = unparsedMessage[0]+","+
+                                getTime(unparsedMessage[1])+","+
+                                unparsedMessage[2].split("#",3)[0]+","+
+                                unparsedMessage[3].substring(0, unparsedMessage[3].length()-1);
+                        System.out.println(String.join("  ", stringyMessage.split(",", 4)));
+
+                        Message message = addMessage(unparsedMessage);
+
+                        // process the message according to its type
+                        switch (message.getMessageType()) {
+                            case PUBLIC:
+                                fw.write(stringyMessage + "\n");
+                                fw.flush();
+                                break;
+
+                            case READ_RESPONSE:
+                                if (!decryptedMessage.equals(IPFSnonPubsub.ipfsID)) break;
+                                setAsSeen(Long.parseLong(unparsedMessage[1]));
+                                break;
+
+                            case COMMENT:
+                                SocialMediaFeed.posts.put(Long.parseLong(message.getAuthor().split("#")[0]), new Post(unparsedMessage));
+                                break;
+
+                            case POST:
+                                //TODO: handle receiving a social media post
+                                break;
+
+                            case UNKNOWN:
+                                //TODO: handle any unknown messages
+                                break;
                         }
-                    } catch (IOException | NullPointerException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+
+                    } catch (IOException | NullPointerException e) {
                         e.printStackTrace();
                     }
                 });
@@ -161,12 +217,14 @@ public class Pubsub implements Runnable {
      * Adds message to memory where we are temp storing it. Sending it to file is elsewhere
      *
      * @param decryptedMessage Array of all the parts of a decrypted message. index 0 = message id, 1 = timestamp, 2 = username, 3 = message content
+     * @return created message
      */
-    private void addMessage(String[] decryptedMessage) {
+    private Message addMessage(String[] decryptedMessage) {
         if (decryptedMessage.length != 4)
             throw new IllegalArgumentException("decryptedMessage is length " + decryptedMessage.length + " when it should be length 4");
 
         long messageId, timestamp;
+        MessageType type;
         String username = decryptedMessage[2];
         String content = decryptedMessage[3];
         // strip trailing identifier from content
@@ -182,8 +240,14 @@ public class Pubsub implements Runnable {
         } catch (NumberFormatException nfe) {
             throw new IllegalArgumentException("cannot parse timestamp long from \"" + decryptedMessage[1] + "\"");
         }
-
-        messages.add(new Message(messageId, timestamp, username, content, false));
+        try {
+            type = MessageType.values()[Integer.parseInt(decryptedMessage[3].substring(decryptedMessage[3].length()-1))];
+        } catch (NumberFormatException nfe) {
+            type = MessageType.UNKNOWN;
+        }
+        Message message = new Message(messageId, timestamp, username, content, type,false);
+        messages.add(message);
+        return message;
     }
 
     /**
@@ -202,10 +266,11 @@ public class Pubsub implements Runnable {
      * Encrypt the aes key and then send it to each person's private room individually to reduce clutter on massive servers when someone new joins
      * Also if the it fails to encrypt the rsa key than run the method again after recreating the aes keys
      */
+    @Deprecated
     private void sendAESkeyEnc() {
         try {
             String aesEnc = new String(Encryption.encryptAESwithRSA(publicKey, aesKey));
-            writeToPubsub(aesEnc, 3);
+            writeToPubsub(aesEnc, MessageType.UNKNOWN);
 //            If the rsa keys fail it just recreates the keys and tries to send the aes keys again
         } catch (IllegalStateException e) {
             try {
@@ -222,14 +287,37 @@ public class Pubsub implements Runnable {
         }
     }
 
+    private String createOutgoingRsaText() {
+        return Base64.getEncoder().encodeToString(publicKey.getEncoded());
+    }
+    private PublicKey parseIncomingRsaText(String text) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        if (!isBase64(text)) return null;
+        byte[] key = Base64.getDecoder().decode(text);
+        return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
+    }
+    private String createOutgoingAesText(PublicKey publicKey) throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
+        Objects.requireNonNull(publicKey, "public key cannot be null");
+        byte[] key = aesKey.getEncoded();
+        byte[] encryptedKey = Encryption.encryptWithRsa(Base64.getEncoder().encodeToString(key), publicKey);
+        return Base64.getEncoder().encodeToString(encryptedKey);
+    }
+    private SecretKey parseIncomingAesKey(String text) throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
+        if (!isBase64(text)) return null;
+        byte[] bytes = Base64.getDecoder().decode(text);
+        String decryptedKey = Encryption.decryptWithRsa(bytes, privateKey);
+        byte[] key = Base64.getDecoder().decode(decryptedKey);
+        return new SecretKeySpec(key, 0, key.length, "AES");
+    }
+
     /**
      * Send the public rsa key to the chat
      */
+    @Deprecated
     private void sendRSAkey() {
         try {
             for (String user : users.keySet()) {
                 if (ipfs.pubsub.peers(user).toString().split(",").length != users.size())
-                    writeToPubsub(String.valueOf(publicKey), 4);
+                    writeToPubsub(String.valueOf(publicKey), MessageType.UNKNOWN);
                 else
                     throw new SecurityException("Someone else is in the chat while we are trying to send the rsa key to their private chat");
             }
@@ -239,36 +327,42 @@ public class Pubsub implements Runnable {
     }
 
     /**
-     * Write the message to pubsub. Is called by encryptMessage
-     * Adding a 1 means that it in an internal message a 0 means that it is external
+     * Send a message into the room. [this method is for internal use]
      *
-     * @param phrase    The phrase to be encrypted and then sent
-     * @param delimiter tells the program what to do with the message. 0 is read the message to the user. 1 is it is a read response. 2 is sending of an rsa key. 3 is an aes key
+     * @param phrase    text to be sent into the connected room
+     * @param type      type of message (See {@link MessageType})
      */
-    void writeToPubsub(String phrase, int delimiter) {
+    protected void writeToPubsub(String phrase, MessageType type) {
+        // ensure a handshake has already occurred before sending
+        if (!ready) throw new IllegalStateException("cannot send prior to handshake");
+
         try {
-            Long time = System.currentTimeMillis();
-            String encPhrase = Encryption.encrypt((phrase.hashCode() + time) + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + delimiter, aesKey);
-//            It breaks if you take this out
-//            Encryption.decrypt(encPhrase, aesKey);
-            ipfs.pubsub.pub(this.roomName, encPhrase);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+            long time = System.currentTimeMillis();
+            String[] message = new String[]{
+                    String.valueOf(phrase.hashCode()+time),
+                    String.valueOf(time),
+                    yourself.getUserName(),
+                    phrase+type.getId()
+            };
+            String encPhrase = Encryption.encrypt(String.join("*", message), aesKey);
+            ipfs.pubsub.pub(roomName, encPhrase);
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     /**
-     * Write the message to pubsub. Is called by encryptMessage
-     * Adding a 1 means that it in an internal message a 0 means that it is external
+     * Write the message to the specified room. [this method is for internal use]
      *
-     * @param roomName  The room to post to
-     * @param phrase    The phrase to be encrypted and then sent
-     * @param delimiter tells the program what to do with the message. 0 is read the message to the user. 1 is it is a read response. 2 is sending of an rsa key. 3 is an aes key. Just sending username for
+     * @param roomName  the room to send the message to
+     * @param phrase    text to be sent into the specified room
+     * @param type      type of message (See {@link MessageType})
      */
-    void writeToPubsub(String roomName, String phrase, int delimiter) {
+    protected void writeToPubsub(String roomName, String phrase, MessageType type) {
+        // ensure a handshake has already occurred before sending
+        if (!ready) throw new IllegalStateException("cannot send prior to handshake");
+
         try {
-            Long time = System.currentTimeMillis();
-            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + delimiter, aesKey);
+            long time = System.currentTimeMillis();
+            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + type.getId(), aesKey);
 //            It breaks if you take this out
 //            Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(roomName, encPhrase);
@@ -288,6 +382,10 @@ public class Pubsub implements Runnable {
                 messages.get(i).editSeen(true);
             }
         }
+    }
+
+    private boolean isBase64(String s) {
+        return s.matches("^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$");
     }
 
     private void closeApp() {

@@ -20,7 +20,7 @@ import java.util.HashMap;
       */
      private void postMessage(String post){
          for(OtherUser user : yourself.getOtherUsers()){
-             writeToPubsub(user.hash.toString(), post, 6);
+             writeToPubsub(user.hash.toString(), post, MessageType.POST);
          }
      }
 
@@ -32,7 +32,7 @@ import java.util.HashMap;
      */
     private void postMessage(String post, Multihash hashOfImage){
         for(OtherUser user : yourself.getOtherUsers()){
-            writeToPubsub(user.hash.toString(), post + "#" + hashOfImage.toString(), 6);
+            writeToPubsub(user.hash.toString(), post + "#" + hashOfImage.toString(), MessageType.POST);
         }
     }
 
@@ -44,7 +44,7 @@ import java.util.HashMap;
      * @param postID The identifier for the post
      */
     private void commentOnMessage(String comment, String postID){
-        writeToPubsub(postID + "#" + comment, 5);
+        writeToPubsub(postID + "#" + comment, MessageType.COMMENT);
     }
 
     private void deletePost(Long postID){

@@ -1,7 +1,4 @@
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -106,5 +103,18 @@ class Encryption {
             e.printStackTrace();
             return null;
         }
+    }
+
+    static byte[] encryptWithRsa(String strToEncrypt, PublicKey publicKey) throws InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+        if (rsaCipher == null)
+            throw new IllegalStateException("Cipher cannot be null");
+        rsaCipher.init(Cipher.PUBLIC_KEY, publicKey);
+        return rsaCipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8));
+    }
+
+    static String decryptWithRsa(byte[] bytesToDecrypt, PrivateKey privateKey) throws InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+        rsaCipher.init(Cipher.PRIVATE_KEY, privateKey);
+        byte[] bytes = rsaCipher.doFinal(bytesToDecrypt);
+        return new String(bytes, StandardCharsets.UTF_8);
     }
 }
