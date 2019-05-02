@@ -82,8 +82,11 @@ class User {
                 String roomName = turnUsersToRoom(userName);
                 rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
                 executorService.submit(rooms.get(roomName));
-                rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
-                rooms.get(roomName).writeToPubsub("hello", 0);
+                while (true) {
+                    rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
+                    rooms.get(roomName).writeToPubsub("hello", 0);
+                    Thread.sleep(100);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -107,9 +110,9 @@ class User {
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
             executorService.submit(rooms.get(roomName));
-            rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
-            rooms.get(roomName).writeToPubsub("hello", 0);
-        } catch (Exception e) {
+                rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
+                rooms.get(roomName).writeToPubsub("hello", 0);
+        }catch (Exception e) {
             e.printStackTrace();
         }
     }
