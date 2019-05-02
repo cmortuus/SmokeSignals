@@ -1,8 +1,10 @@
 import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Base64;
+import java.util.Objects;
 
 class Encryption {
     //    TODO don't store these in plain text
@@ -19,10 +21,11 @@ class Encryption {
         }
     }
 
-    static String encrypt(String strToEncrypt, SecretKey secretKey) {
+    static String encrypt(String strToEncrypt, SecretKey secretKey, String initVector) {
         try {
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
             return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
             System.out.println("Error while encrypting: " + e.toString());
@@ -30,10 +33,11 @@ class Encryption {
         return null;
     }
 
-    static String decrypt(String strToDecrypt, SecretKey secretKey) {
+    static String decrypt(String strToDecrypt, SecretKey secretKey, String initVector) {
         try {
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5PADDING");
-            cipher.init(Cipher.DECRYPT_MODE, secretKey);
+            IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
             return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)));
         } catch (Exception e) {
             System.out.println("Error while decrypting: " + e.toString());
@@ -76,16 +80,11 @@ class Encryption {
      * @param secretKey
      * @return
      */
-    static byte[] encryptAESwithRSA(PublicKey publicKey, SecretKey secretKey) {
-        if (rsaCipher == null)
-            throw new IllegalStateException("Cipher cannot be null");
-        try {
-            rsaCipher.init(Cipher.PUBLIC_KEY, publicKey);
-            return rsaCipher.doFinal(secretKey.getEncoded()/*Seceret Key From Step 1*/);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new IllegalStateException("The rsa key did not encrypt the aes key properly");
-        }
+    static byte[] encryptAesWithRsa(PublicKey publicKey, SecretKey secretKey)
+            throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        Objects.requireNonNull(rsaCipher, "RSA Cipher cannot be null");
+        rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        return rsaCipher.doFinal(secretKey.getEncoded());
     }
 
     /**
@@ -94,18 +93,15 @@ class Encryption {
      * @param encryptedKey
      * @return
      */
-    static SecretKey decrypteAESkeyWithRSA(byte[] encryptedKey, PrivateKey privateKey) {
-        try {
-            rsaCipher.init(Cipher.PRIVATE_KEY, privateKey);
-            byte[] aesKey = rsaCipher.doFinal(encryptedKey);
-            return new SecretKeySpec(aesKey, 0, aesKey.length, "AES");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+    static SecretKey decryptAesKeyWithRsa(byte[] encryptedKey, PrivateKey privateKey)
+            throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        Objects.requireNonNull(rsaCipher, "RSA Cipher cannot be null");
+        rsaCipher.init(Cipher.DECRYPT_MODE, privateKey);
+        return new SecretKeySpec(rsaCipher.doFinal(encryptedKey), "AES");
     }
 
-    static byte[] encryptWithRsa(String strToEncrypt, PublicKey publicKey) throws InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
+    static byte[] encryptWithRsa(String strToEncrypt, PublicKey publicKey)
+            throws InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
         if (rsaCipher == null)
             throw new IllegalStateException("Cipher cannot be null");
         rsaCipher.init(Cipher.PUBLIC_KEY, publicKey);

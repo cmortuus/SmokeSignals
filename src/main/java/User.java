@@ -1,3 +1,4 @@
+
 import javax.crypto.SecretKey;
 import java.io.File;
 import java.io.FileWriter;
@@ -15,7 +16,7 @@ class User {
 
     private String userName;
     private HashMap<String, Pubsub> rooms;
-    private HashMap<String, SecretKey> secretKeys;
+    private HashMap<String, Pair<SecretKey, String>> secretKeys;
     private ArrayList<OtherUser> otherUsers;
     private ExecutorService executorService;
 
@@ -76,11 +77,11 @@ class User {
         return userName;
     }
 
-    public void addSecretKey(String associatedUser, SecretKey key) {
-        secretKeys.put(associatedUser, key);
+    public void addSecretKey(String associatedUser, Pair<SecretKey, String> pair) {
+        secretKeys.put(associatedUser, pair);
     }
 
-    public SecretKey getUserAesKey(String user) {
+    public Pair<SecretKey, String> getUserAesKey(String user) {
         return secretKeys.get(user);
     }
 

@@ -29,9 +29,9 @@ import java.util.stream.Stream;
 //TODO make sure that people can see the message when it is not writing to a file
 //TODO send message when you go online and then when the app closes send message that you are offline when you come online everyone tells you if they are online everything else is assumed offline
 //TODO write method to pull messages from the file after app has been closed
-//TODO implament parental controls
-//TODO work on socaial media part of it
-//TODO when a comment is added resend the post and have that overwrite the orraginal post in people's timeline
+//TODO implement parental controls
+//TODO work on social media part of it
+//TODO when a comment is added resend the post and have that overwrite the original post in people's timeline
 //TODO figure out how to do *Eco is typing* Probably just send a message ahead of time
 //TODO find a way to do num mutual friends
 //TODO build in emoji support
@@ -44,12 +44,16 @@ public class Pubsub implements Runnable {
     private IPFS ipfs;
     //    Username and hash
     private HashMap<String, String> users;
-    private PrivateKey privateKey;
-    private PublicKey publicKey;
-    private SecretKey aesKey;
     private int numUsersFound;
     private ArrayList<Message> messages;
     private ArrayList<OtherUser> usersInRoom;
+
+    // encryption
+    private SecretKey aesKey;
+    private String iv;
+    private PrivateKey privateKey;
+    private PublicKey publicKey;
+
     private boolean ready;
 
     Pubsub(User yourself, String roomName, Boolean saveMessage) {
@@ -61,13 +65,18 @@ public class Pubsub implements Runnable {
             this.roomName = roomName;
             ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
             room = ipfs.pubsub.sub(roomName);
-//          Encryption keys
-            KeyPair keypair = Encryption.generateKeys();
-            publicKey = keypair.getPublic();
-            privateKey = keypair.getPrivate();
-            aesKey = Encryption.generateAESkey();
             messages = new ArrayList<>();
             usersInRoom = new ArrayList<>();
+
+            //encryption
+            aesKey = Encryption.generateAESkey();
+            byte[] b = new byte[16];
+            new SecureRandom().nextBytes(b);
+            iv = Base64.getEncoder().encodeToString(b);
+            KeyPair keypair = Encryption.generateKeys();
+            privateKey = keypair.getPrivate();
+            publicKey = keypair.getPublic();
+
             ready = false;
         } catch (Exception e) {
             e.printStackTrace();
@@ -96,6 +105,19 @@ public class Pubsub implements Runnable {
         try {
             File file = new File(roomName);
             if(!file.exists()) file.createNewFile();
+
+            new Thread(() -> {
+                while (!ready) {
+                    System.out.println("[DEBUG] attempting to start a handshake");
+                    try { System.out.println("peers: " + ipfs.pubsub.peers(roomName));
+                    } catch (IOException ignore) {}
+                    try { ipfs.pubsub.pub(roomName, createOutgoingRsaText());
+                    } catch (Exception e) { e.printStackTrace(); }
+                    try { Thread.sleep(10000);
+                    } catch (InterruptedException ignore) {}
+                }
+            }).start();
+
             try (FileWriter fw = new FileWriter(file, true)) {
 
                 // initialize
@@ -104,6 +126,7 @@ public class Pubsub implements Runnable {
 
                 // write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
+                    if (stringObjectMap.isEmpty()) return;
                     try {
 
                         //TODO: do something with this
@@ -127,8 +150,8 @@ public class Pubsub implements Runnable {
                         //TODO: is there a better way to differentiate the sender?
                         String sender = stringObjectMap.toString().split(",",2)[0].substring(6);
 
-                        SecretKey authorAesKey = yourself.getUserAesKey(sender);
-                        if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
+                        Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
+                        if (authorAesKey == null || isBase64(decodedString)) { // if we have not received an aes key from the author yet then perform a handshake
                             if (!isBase64(decodedString)) return;
                             //TODO: verify that this is someone we actually want to perform a handshake with
                             try { // stage 1
@@ -143,20 +166,23 @@ public class Pubsub implements Runnable {
                             } catch (Exception ignore) { // stage 2
                                 System.out.println("[DEBUG] attempting handshake stage 2");
                                 try {
-                                    SecretKey key = parseIncomingAesKey(decodedString);
-                                    if (key == null) throw new Exception();
-                                    yourself.addSecretKey(sender, key);
-                                    ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded()), key));
-                                    ready = true;
+                                    Pair<SecretKey, String> pair = parseIncomingAesKey(decodedString);
+                                    if (pair == null) return;
+                                    if (pair.getKey() == null) throw new Exception();
+                                    yourself.addSecretKey(sender, pair);
+                                    ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
+                                    if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) ready = true;
                                     System.out.println("[DEBUG] completed handshake stage 2");
                                 } catch (Exception ignore2) { // stage 3
                                     System.out.println("[DEBUG] attempting handshake stage 3");
                                     try {
-                                        String decrypted = Encryption.decrypt(decodedString, aesKey);
-                                        if (decrypted == null || !isBase64(decrypted)) return;
-                                        byte[] bytes = Base64.getDecoder().decode(decrypted);
-                                        SecretKey key = new SecretKeySpec(bytes, 0, bytes.length, "AES");
-                                        yourself.addSecretKey(sender, key);
+                                        String decrypted = Encryption.decrypt(decodedString, aesKey, iv);
+                                        if (decrypted == null) return;
+                                        String[] joined = decrypted.split("\\|");
+                                        if (joined.length != 2 || !isBase64(joined[0])) return;
+                                        byte[] bytes = Base64.getDecoder().decode(joined[0]);
+                                        SecretKey key = new SecretKeySpec(bytes, "AES");
+                                        yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
                                         System.out.println("[DEBUG] completed handshake stage 3");
                                     } catch (Exception ignore3) {}
                                 }
@@ -165,7 +191,7 @@ public class Pubsub implements Runnable {
                             return;
                         }
 
-                        String decryptedMessage = Encryption.decrypt(decodedString, authorAesKey);
+                        String decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
                         if (decryptedMessage == null) return; // abort if the message could not be decrypted
                         String[] unparsedMessage = decryptedMessage.split("\\*", 4);
                         if (unparsedMessage.length != 4) return; // abort if the message is not formatted correctly
@@ -269,7 +295,7 @@ public class Pubsub implements Runnable {
     @Deprecated
     private void sendAESkeyEnc() {
         try {
-            String aesEnc = new String(Encryption.encryptAESwithRSA(publicKey, aesKey));
+            String aesEnc = new String(Encryption.encryptAesWithRsa(publicKey, aesKey));
             writeToPubsub(aesEnc, MessageType.UNKNOWN);
 //            If the rsa keys fail it just recreates the keys and tries to send the aes keys again
         } catch (IllegalStateException e) {
@@ -290,23 +316,29 @@ public class Pubsub implements Runnable {
     private String createOutgoingRsaText() {
         return Base64.getEncoder().encodeToString(publicKey.getEncoded());
     }
-    private PublicKey parseIncomingRsaText(String text) throws NoSuchAlgorithmException, InvalidKeySpecException {
+    private PublicKey parseIncomingRsaText(String text)
+            throws NoSuchAlgorithmException, InvalidKeySpecException {
         if (!isBase64(text)) return null;
         byte[] key = Base64.getDecoder().decode(text);
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
     }
-    private String createOutgoingAesText(PublicKey publicKey) throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
+    private String createOutgoingAesText(PublicKey publicKey)
+            throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
         Objects.requireNonNull(publicKey, "public key cannot be null");
-        byte[] key = aesKey.getEncoded();
-        byte[] encryptedKey = Encryption.encryptWithRsa(Base64.getEncoder().encodeToString(key), publicKey);
-        return Base64.getEncoder().encodeToString(encryptedKey);
+        String joined = Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv;
+        byte[] encrypted = Encryption.encryptWithRsa(joined, publicKey);
+        return Base64.getEncoder().encodeToString(encrypted);
     }
-    private SecretKey parseIncomingAesKey(String text) throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
+    private Pair<SecretKey, String> parseIncomingAesKey(String text)
+            throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
         if (!isBase64(text)) return null;
         byte[] bytes = Base64.getDecoder().decode(text);
-        String decryptedKey = Encryption.decryptWithRsa(bytes, privateKey);
-        byte[] key = Base64.getDecoder().decode(decryptedKey);
-        return new SecretKeySpec(key, 0, key.length, "AES");
+        String joined = Encryption.decryptWithRsa(bytes, privateKey);
+        String[] split = joined.split("\\|");
+        if (split.length != 2) throw new IllegalArgumentException("invalid format");
+        if (!isBase64(split[0])) throw new IllegalArgumentException("invalid format");
+        SecretKey key = new SecretKeySpec(Base64.getDecoder().decode(split[0]), "AES");
+        return new Pair<>(key, split[1]);
     }
 
     /**
@@ -344,7 +376,7 @@ public class Pubsub implements Runnable {
                     yourself.getUserName(),
                     phrase+type.getId()
             };
-            String encPhrase = Encryption.encrypt(String.join("*", message), aesKey);
+            String encPhrase = Encryption.encrypt(String.join("*", message), aesKey, iv);
             ipfs.pubsub.pub(roomName, encPhrase);
         } catch (Exception e) { e.printStackTrace(); }
     }
@@ -362,7 +394,7 @@ public class Pubsub implements Runnable {
 
         try {
             long time = System.currentTimeMillis();
-            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + type.getId(), aesKey);
+            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + type.getId(), aesKey, iv);
 //            It breaks if you take this out
 //            Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(roomName, encPhrase);
