@@ -94,6 +94,10 @@ public class Pubsub implements Runnable {
         writeToPubsub(message, MessageType.PUBLIC);
     }
 
+    public boolean isReady() {
+        return ready;
+    }
+
     /**
      * Threaded method that reads the messages out after they have been sent, unHashes them, decrypts them, and in the case of internal messages applies their message.
      * The handshake function was built into this one
@@ -105,42 +109,26 @@ public class Pubsub implements Runnable {
         try {
             File file = new File(roomName);
             if(!file.exists()) file.createNewFile();
-
-            new Thread(() -> {
-                while (!ready) {
-                    System.out.println("[DEBUG] attempting to start a handshake");
-                    try { System.out.println("peers: " + ipfs.pubsub.peers(roomName));
-                    } catch (IOException ignore) {}
-                    try { ipfs.pubsub.pub(roomName, createOutgoingRsaText());
-                    } catch (Exception e) { e.printStackTrace(); }
-                    try { Thread.sleep(10000);
-                    } catch (InterruptedException ignore) {}
-                }
-            }).start();
-
             try (FileWriter fw = new FileWriter(file, true)) {
 
-                // initialize
-                try { ipfs.pubsub.pub(roomName, createOutgoingRsaText());
-                } catch (Exception e) { e.printStackTrace(); }
+                // initiate handshake
+                new Thread(() -> {
+                    while (!ready) {
+                        System.out.println("[DEBUG] attempting to start a handshake");
+                        try { System.out.println("peers: " + ipfs.pubsub.peers(roomName));
+                        } catch (IOException ignore) {}
+                        try { ipfs.pubsub.pub(roomName, createOutgoingRsaText());
+                        } catch (Exception e) { e.printStackTrace(); }
+                        try { Thread.sleep(10000);
+                        } catch (InterruptedException ignore) {}
+                    }
+                    System.out.println("initialized");
+                }).start();
 
                 // write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
                     if (stringObjectMap.isEmpty()) return;
                     try {
-
-                        //TODO: do something with this
-//                        Thread sendUsername = new Thread(() -> {
-//                            try {
-//                                while (numUsersFound < users.size()) {
-//                                    writeToPubsub("username", MessageType.UNKNOWN);
-//                                    Thread.sleep(100);
-//                                }
-//                            } catch (InterruptedException e) {
-//                                e.printStackTrace();
-//                            }
-//                        });
-//                        sendUsername.run();
 
                         String base64Data = stringObjectMap.values().toString().split(",")[1].trim();
                         byte[] decodedBytes = Base64.getDecoder().decode(base64Data);
@@ -151,7 +139,7 @@ public class Pubsub implements Runnable {
                         String sender = stringObjectMap.toString().split(",",2)[0].substring(6);
 
                         Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
-                        if (authorAesKey == null || isBase64(decodedString)) { // if we have not received an aes key from the author yet then perform a handshake
+                        if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
                             if (!isBase64(decodedString)) return;
                             //TODO: verify that this is someone we actually want to perform a handshake with
                             try { // stage 1
@@ -177,12 +165,12 @@ public class Pubsub implements Runnable {
                                     System.out.println("[DEBUG] attempting handshake stage 3");
                                     try {
                                         String decrypted = Encryption.decrypt(decodedString, aesKey, iv);
-                                        if (decrypted == null) return;
                                         String[] joined = decrypted.split("\\|");
                                         if (joined.length != 2 || !isBase64(joined[0])) return;
                                         byte[] bytes = Base64.getDecoder().decode(joined[0]);
                                         SecretKey key = new SecretKeySpec(bytes, "AES");
                                         yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
+                                        ready = true;
                                         System.out.println("[DEBUG] completed handshake stage 3");
                                     } catch (Exception ignore3) {}
                                 }
@@ -191,8 +179,10 @@ public class Pubsub implements Runnable {
                             return;
                         }
 
-                        String decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
-                        if (decryptedMessage == null) return; // abort if the message could not be decrypted
+                        String decryptedMessage;
+                        try { decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
+                        } catch (Exception e) { return; }
+
                         String[] unparsedMessage = decryptedMessage.split("\\*", 4);
                         if (unparsedMessage.length != 4) return; // abort if the message is not formatted correctly
 
@@ -288,31 +278,6 @@ public class Pubsub implements Runnable {
         return sdf.format(new Date(Long.parseLong(time)));
     }
 
-    /**
-     * Encrypt the aes key and then send it to each person's private room individually to reduce clutter on massive servers when someone new joins
-     * Also if the it fails to encrypt the rsa key than run the method again after recreating the aes keys
-     */
-    @Deprecated
-    private void sendAESkeyEnc() {
-        try {
-            String aesEnc = new String(Encryption.encryptAesWithRsa(publicKey, aesKey));
-            writeToPubsub(aesEnc, MessageType.UNKNOWN);
-//            If the rsa keys fail it just recreates the keys and tries to send the aes keys again
-        } catch (IllegalStateException e) {
-            try {
-                e.printStackTrace();
-                KeyPair keypair = Encryption.generateKeys();
-                publicKey = keypair.getPublic();
-                privateKey = keypair.getPrivate();
-                sendAESkeyEnc();
-            } catch (NoSuchAlgorithmException err) {
-                err.printStackTrace();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     private String createOutgoingRsaText() {
         return Base64.getEncoder().encodeToString(publicKey.getEncoded());
     }
@@ -339,23 +304,6 @@ public class Pubsub implements Runnable {
         if (!isBase64(split[0])) throw new IllegalArgumentException("invalid format");
         SecretKey key = new SecretKeySpec(Base64.getDecoder().decode(split[0]), "AES");
         return new Pair<>(key, split[1]);
-    }
-
-    /**
-     * Send the public rsa key to the chat
-     */
-    @Deprecated
-    private void sendRSAkey() {
-        try {
-            for (String user : users.keySet()) {
-                if (ipfs.pubsub.peers(user).toString().split(",").length != users.size())
-                    writeToPubsub(String.valueOf(publicKey), MessageType.UNKNOWN);
-                else
-                    throw new SecurityException("Someone else is in the chat while we are trying to send the rsa key to their private chat");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     /**

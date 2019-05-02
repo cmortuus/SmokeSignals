@@ -149,6 +149,12 @@ class User {
         rooms.get(roomName).sendMessage(message);
     }
 
+    public boolean isRoomReady(String roomName) {
+        if (!rooms.containsKey(roomName))
+            throw new IllegalArgumentException("room does not exist");
+        return rooms.get(roomName).isReady();
+    }
+
     /**
      * Turn the usernames of two users into a room name
      *

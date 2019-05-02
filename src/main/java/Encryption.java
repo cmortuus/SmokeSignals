@@ -21,28 +21,18 @@ class Encryption {
         }
     }
 
-    static String encrypt(String strToEncrypt, SecretKey secretKey, String initVector) {
-        try {
-            IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
-            return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception e) {
-            System.out.println("Error while encrypting: " + e.toString());
-        }
-        return null;
+    static String encrypt(String strToEncrypt, SecretKey secretKey, String initVector) throws Exception {
+        IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+        return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
     }
 
-    static String decrypt(String strToDecrypt, SecretKey secretKey, String initVector) {
-        try {
-            IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
-            return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)));
-        } catch (Exception e) {
-            System.out.println("Error while decrypting: " + e.toString());
-        }
-        return null;
+    static String decrypt(String strToDecrypt, SecretKey secretKey, String initVector) throws Exception {
+        IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
+        return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)));
     }
 
     /**
