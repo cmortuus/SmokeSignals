@@ -13,20 +13,25 @@ import java.util.concurrent.Executors;
 
 
 class User {
-    static String userName;
-    private static HashMap<String, Pubsub> rooms;
-    static ArrayList<SecretKey> secretKeys;
-    static ArrayList<PublicKey> publicKeys;
-    static ArrayList<OtherUser> otherUsers;
+
+    private String userName;
+    private HashMap<String, Pubsub> rooms;
+    private ArrayList<SecretKey> secretKeys;
+    private ArrayList<PublicKey> publicKeys;
+    private ArrayList<OtherUser> otherUsers;
+    private ExecutorService executorService;
+
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventually change this from one large file to one file that is for your username or aliases
     //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
     User(String user) throws IOException {
+
         userName = user;
         rooms = new HashMap<>();
         publicKeys = new ArrayList<>();
         secretKeys = new ArrayList<>();
-        otherUsers = new ArrayList<OtherUser>();
+        otherUsers = new ArrayList<>();
+        executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
 
         // Create the file or open it
         File file = new File("users.txt");
@@ -70,6 +75,22 @@ class User {
         }
     }
 
+    public String getUserName() {
+        return userName;
+    }
+
+    public void addSecretKey(SecretKey key) {
+        secretKeys.add(key);
+    }
+
+    public void addPublicKey(PublicKey key) {
+        publicKeys.add(key);
+    }
+
+    public ArrayList<OtherUser> getOtherUsers() {
+        return otherUsers;
+    }
+
     /**
      * Creates pubsub room and adds it to the dict(rooms)
      *
@@ -78,9 +99,8 @@ class User {
     void createRoom(String otherUser) {
         if (isValidUserFormat(otherUser)) {
             try {
-                ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
                 String roomName = turnUsersToRoom(userName);
-                rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
+                rooms.put(roomName, new Pubsub(this, turnUsersToRoom(otherUser), true));
                 executorService.submit(rooms.get(roomName));
                 while (true) {
                     rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
@@ -103,9 +123,8 @@ class User {
      */
     void createRoom(String[] otherUser) {
         try {
-            ExecutorService executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
             String roomName = turnUsersToRoom(userName);
-            rooms.put(roomName, new Pubsub(turnUsersToRoom(otherUser), true));
+            rooms.put(roomName, new Pubsub(this, turnUsersToRoom(otherUser), true));
 //            Add new user to the arraylist in pubsub and then send that to
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room

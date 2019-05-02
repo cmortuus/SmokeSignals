@@ -35,6 +35,8 @@ import java.util.stream.Stream;
 //TODO find a way to do num mutual friends
 //TODO build in emoji support
 public class Pubsub implements Runnable {
+
+    private User yourself;
     private boolean saveMessage;
     private Stream<Map<String, Object>> room;
     private String roomName;
@@ -48,8 +50,9 @@ public class Pubsub implements Runnable {
     private ArrayList<Message> messages;
     private ArrayList<OtherUser> usersInRoom;
 
-    Pubsub(String roomName, Boolean saveMessage) {
+    Pubsub(User yourself, String roomName, Boolean saveMessage) {
         try {
+            this.yourself = yourself;
             this.saveMessage = saveMessage;
             users = new HashMap<>();
             this.roomName = roomName;
@@ -128,19 +131,19 @@ public class Pubsub implements Runnable {
                             setAsSeen(Long.parseLong(timeAndMessage[1]));
                             byte[] key = IPFSnonPubsub.getFile(new Multihash(data.getBytes()));
                             PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
-                            User.publicKeys.add(publicKey);
+                            yourself.addPublicKey(publicKey);
 //                            TODO create user object and add it to the list for the room and for user
                             if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
                                 sendRSAkey();
                                 sendAESkeyEnc();
                             }
                         } else if (textSent.endsWith("3")) {
-                            User.secretKeys.add(new SecretKeySpec(textSent.getBytes(), 0, textSent.getBytes().length, "AES"));
+                            yourself.addSecretKey(new SecretKeySpec(textSent.getBytes(), 0, textSent.getBytes().length, "AES"));
                         } else if (textSent.endsWith("4")) {
                             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(textSent.getBytes());
                             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                             PublicKey pubKey = keyFactory.generatePublic(keySpec);
-                            User.publicKeys.add(pubKey);
+                            yourself.addPublicKey(pubKey);
                         } else if (textSent.endsWith("5")){
                             SocialMediaFeed.posts.put(Long.parseLong(textSent.split("#")[0]), new Post(timeAndMessage));
                         }
@@ -245,7 +248,7 @@ public class Pubsub implements Runnable {
     void writeToPubsub(String phrase, int delimiter) {
         try {
             Long time = System.currentTimeMillis();
-            String encPhrase = Encryption.encrypt((phrase.hashCode() + time) + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
+            String encPhrase = Encryption.encrypt((phrase.hashCode() + time) + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + delimiter, aesKey);
 //            It breaks if you take this out
 //            Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(this.roomName, encPhrase);
@@ -265,7 +268,7 @@ public class Pubsub implements Runnable {
     void writeToPubsub(String roomName, String phrase, int delimiter) {
         try {
             Long time = System.currentTimeMillis();
-            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + User.userName + "*" + phrase + delimiter, aesKey);
+            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + delimiter, aesKey);
 //            It breaks if you take this out
 //            Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(roomName, encPhrase);

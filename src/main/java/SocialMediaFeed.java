@@ -5,10 +5,12 @@ import java.util.HashMap;
  class SocialMediaFeed extends Pubsub {
 
     static HashMap<Long, Post> posts;
+    private User yourself;
 
-    SocialMediaFeed() {
-        super(IPFSnonPubsub.ipfsID, true);
+    SocialMediaFeed(User yourself) {
+        super(yourself, IPFSnonPubsub.ipfsID, true);
         posts = new HashMap<>();
+        this.yourself = yourself;
     }
 
      /**
@@ -17,7 +19,7 @@ import java.util.HashMap;
       * @param post The pure text of what needs to be uploaded
       */
      private void postMessage(String post){
-         for(OtherUser user: User.otherUsers){
+         for(OtherUser user : yourself.getOtherUsers()){
              writeToPubsub(user.hash.toString(), post, 6);
          }
      }
@@ -29,7 +31,7 @@ import java.util.HashMap;
      * @param hashOfImage The multiHash in string form of the image that is posted.
      */
     private void postMessage(String post, Multihash hashOfImage){
-        for(OtherUser user: User.otherUsers){
+        for(OtherUser user : yourself.getOtherUsers()){
             writeToPubsub(user.hash.toString(), post + "#" + hashOfImage.toString(), 6);
         }
     }

@@ -1,11 +1,12 @@
 public class main {
     public static void main(String[] args) {
-        SocialMediaFeed socialMediaFeed = new SocialMediaFeed();
+
         String mainUser = "Caleb";
         String[] otherUsers = {"Christian#234234", "Mathiew#123456"};
         try {
             if (!mainUser.matches("\\D\\W")) {
                 User Caleb = new User(mainUser);
+                SocialMediaFeed socialMediaFeed = new SocialMediaFeed(Caleb);
                 for(String otherUser : otherUsers) {
                     if (!otherUser.matches("\\D\\W")) {
                         if (User.isValidUserFormat(otherUser)) {
