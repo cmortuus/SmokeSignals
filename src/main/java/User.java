@@ -100,7 +100,7 @@ class User {
         if (isValidUserFormat(otherUser)) {
             try {
                 String roomName = turnUsersToRoom(userName);
-                rooms.put(roomName, new Pubsub(this, turnUsersToRoom(otherUser), true));
+                rooms.put(roomName, new Pubsub(this, roomName, true));
                 executorService.submit(rooms.get(roomName));
                 while (true) {
                     rooms.get(roomName).writeToPubsub("1123*1231*2312*3123", 0);
@@ -123,8 +123,8 @@ class User {
      */
     void createRoom(String[] otherUser) {
         try {
-            String roomName = turnUsersToRoom(userName);
-            rooms.put(roomName, new Pubsub(this, turnUsersToRoom(otherUser), true));
+            String roomName = turnUsersToRoom(otherUser);
+            rooms.put(roomName, new Pubsub(this, roomName, true));
 //            Add new user to the arraylist in pubsub and then send that to
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
@@ -134,6 +134,21 @@ class User {
         }catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public String joinExistingRoom(String otherUser) {
+        if (!isValidUserFormat(otherUser))
+            throw new IllegalArgumentException("user does not fit the format username#discriminator");
+        String roomName = turnUsersToRoom(otherUser);
+        rooms.put(roomName, new Pubsub(this, roomName, true));
+        executorService.submit(rooms.get(roomName));
+        return roomName;
+    }
+
+    public void sendToRoom(String roomName, String message) {
+        if (!rooms.containsKey(roomName))
+            throw new IllegalArgumentException("room does not exist");
+        rooms.get(roomName).writeToPubsub(message, 0);
     }
 
     /**

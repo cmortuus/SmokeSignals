@@ -101,8 +101,7 @@ class Encryption {
         try {
             rsaCipher.init(Cipher.PRIVATE_KEY, privateKey);
             byte[] aesKey = rsaCipher.doFinal(encryptedKey);
-            SecretKey secretKey = new SecretKeySpec(aesKey, 0, aesKey.length, "AES");
-            return secretKey;
+            return new SecretKeySpec(aesKey, 0, aesKey.length, "AES");
         } catch (Exception e) {
             e.printStackTrace();
             return null;
