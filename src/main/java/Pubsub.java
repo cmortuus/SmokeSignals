@@ -6,6 +6,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.security.*;
@@ -110,8 +111,12 @@ public class Pubsub implements Runnable {
 //        Needs two try catches because the try statement that buffered writer is in does not account for the IOException that FileWriter will throw
 
         try {
+
             File file = new File(roomName);
             if(!file.exists()) file.createNewFile();
+            loadMessagesFromFile(new File(roomName));
+            printLastMessages(20);
+
             try (FileWriter fw = new FileWriter(file, true)) {
 
                 // initiate handshake
@@ -179,8 +184,10 @@ public class Pubsub implements Runnable {
                             case PUBLIC: {
                                 messages.add(message);
                                 messageLookup.put(message.getMessageId(), message);
-                                fw.write(stringyMessage + "\n");
-                                fw.flush();
+                                if (saveMessage) {
+                                    fw.write(message.toString() + "\n");
+                                    fw.flush();
+                                }
 
                                 //if (message.getAuthor().equals(yourself.getUserName())) {
 //                                    if (message.getContent().startsWith("--edit")) {
@@ -206,6 +213,10 @@ public class Pubsub implements Runnable {
                             case COMMENT: {
                                 messages.add(message);
                                 messageLookup.put(message.getMessageId(), message);
+                                if (saveMessage) {
+                                    fw.write(message.toString() + "\n");
+                                    fw.flush();
+                                }
                                 SocialMediaFeed.posts.put(Long.parseLong(message.getAuthor().split("#")[0]), new Post(unparsedMessage));
                                 break;
                             }
@@ -213,6 +224,10 @@ public class Pubsub implements Runnable {
                             case POST: {
                                 messages.add(message);
                                 messageLookup.put(message.getMessageId(), message);
+                                if (saveMessage) {
+                                    fw.write(message.toString() + "\n");
+                                    fw.flush();
+                                }
                                 //TODO: handle receiving a social media post
                                 break;
                             }
@@ -313,7 +328,7 @@ public class Pubsub implements Runnable {
         } catch (NumberFormatException nfe) {
             type = MessageType.UNKNOWN;
         }
-        return new Message(messageId, timestamp, username, content, type,false);
+        return new Message(messageId, timestamp, type, false, username, content);
     }
 
     /**
@@ -326,6 +341,18 @@ public class Pubsub implements Runnable {
     private String getTime(String time) {
         SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss");
         return sdf.format(new Date(Long.parseLong(time)));
+    }
+
+    /**
+     * Turns the epoch time sent in the message to human readable time
+     * At some point this will have to be related to current time. ie 20 min ago
+     *
+     * @param time The Epoch time that the message was sent at
+     * @return The human readable time that the message was sent at
+     */
+    private String getTime(long time) {
+        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss");
+        return sdf.format(new Date(time));
     }
 
     private String createOutgoingRsaText() {
@@ -430,6 +457,30 @@ public class Pubsub implements Runnable {
             String encPhrase = Encryption.encrypt(String.join("*", message), aesKey, iv);
             ipfs.pubsub.pub(roomName, encPhrase);
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void loadMessagesFromFile(File file) {
+        if (!file.exists()) return;
+        try (Scanner scn = new Scanner(file)) {
+            while (scn.hasNextLine()) {
+                String line = scn.nextLine();
+                if (!line.matches("([0-9]+\\|[0-9]+\\|[0-9]+\\|(true|false)\\|.+\\|.+)")) continue;
+                Message msg = new Message(line);
+                messages.add(msg);
+                messageLookup.put(msg.getMessageId(), msg);
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void printLastMessages(int n) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = Math.max(0, messages.size()-n); i < messages.size(); i++) {
+            Message msg = messages.get(i);
+            sb.append(msg.getMessageId()).append("  ").append(getTime(msg.getTimestampLong())).append("  ").append(msg.getAuthor().split("#", 2)[0]).append(">  ").append(msg.getContent()).append("\n");
+        }
+        System.out.println(sb.toString());
     }
 
     private boolean isBase64(String s) {
