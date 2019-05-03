@@ -15,16 +15,10 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Stream;
 
-//TODO Make it so that you can edit texts after you send them
-//  TODO send message that ends in a 0. This message will include a time stamp and the hashcode of the message. Each message will have to be stored in the hashmap with a timestamp
-//  TODO give each message a hash and reference it by the hash of the message. Every message sent might have a hash that I just need to find
-//  TODO use this to edit the message, maybe keep a history maybe don't
 //TODO when making the social media side of it allow people to add people to chats, but not add them to the social media feed
-//TODO add handshake for seen messages and write the messages that the user sends to the log file
 //TODO put a handshake in on each message so that if somebody misses a message than they all fill in the gaps
 //TODO Have them keep trying to decrypt the aes keys until they have everyone in the chat and then if one of the keys does not work throw an error to have everyone remake and resend the keys
 //TODO add voice features in as well
-//TODO make it so that it dynamically chooses to use one aes key per person or per room depending on number of people in room. If you have an aes key for each person you have to send a message for each person.
 //TODO make it so you can delete a person from a chatroom if they delete the app
 //TODO make sure that people can see the message when it is not writing to a file
 //TODO send message when you go online and then when the app closes send message that you are offline when you come online everyone tells you if they are online everything else is assumed offline
@@ -63,6 +57,7 @@ public class Pubsub implements Runnable {
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
+//        UI.taDisplay.append("Roomname" + roomName);
         try {
             this.yourself = yourself;
             users = new HashMap<>();
@@ -174,6 +169,7 @@ public class Pubsub implements Runnable {
                                 unparsedMessage[2].split("#",3)[0]+","+
                                 unparsedMessage[3].substring(0, unparsedMessage[3].length()-1);
                         System.out.println(String.join("  ", stringyMessage.split(",", 4)));
+                        UI.taDisplay.append(String.join("  ", stringyMessage.split(",", 4)));
 
                         Message message = parseMessage(unparsedMessage);
                         //TODO: better message save stuff
