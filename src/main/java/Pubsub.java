@@ -35,6 +35,7 @@ import java.util.stream.Stream;
 //TODO figure out how to do *Eco is typing* Probably just send a message ahead of time
 //TODO find a way to do num mutual friends
 //TODO build in emoji support
+//TODO complete all the todo statements
 public class Pubsub implements Runnable {
 
     private User yourself;
@@ -58,7 +59,7 @@ public class Pubsub implements Runnable {
     private PublicKey publicKey;
 
     private boolean ready;
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
@@ -184,6 +185,19 @@ public class Pubsub implements Runnable {
                                 messageLookup.put(message.getMessageId(), message);
                                 fw.write(stringyMessage + "\n");
                                 fw.flush();
+
+                                //if (message.getAuthor().equals(yourself.getUserName())) {
+//                                    if (message.getContent().startsWith("--edit")) {
+//                                        String[] split = message.getContent().split(" ", 3);
+//                                        if (split.length != 3) return;
+//                                        try {
+//                                            long msgId = Long.parseLong(split[1]);
+//                                            Message msg = messageLookup.get(msgId);
+//                                            if (msg == null || !msg.getAuthor().equals(message.getAuthor())) return;
+//                                            editMessage(msg, split[2]);
+//                                        } catch (NumberFormatException ignore) {}
+//                                    }
+                                //}
                                 break;
                             }
 
@@ -209,7 +223,11 @@ public class Pubsub implements Runnable {
 
                             case EDIT: {
                                 Message msg = messageLookup.get(message.getMessageId());
-                                if (msg != null) msg.editContent(message.getContent());
+                                if (msg == null) return;
+//                                String oldContent = msg.getContent();
+                                msg.editContent(message.getContent());
+//                                String response = "<type=edit messageId="+msg.getMessageId()+" oldContent=\""+oldContent+"\" newContent=\""+msg.getContent()+"\">";
+//                                sendMessage(response);
                                 break;
                             }
 
