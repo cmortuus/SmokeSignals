@@ -55,6 +55,7 @@ public class Pubsub implements Runnable {
     private PublicKey publicKey;
 
     private boolean ready;
+    private static final boolean DEBUG = false;
 
     Pubsub(User yourself, String roomName, Boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
@@ -114,15 +115,15 @@ public class Pubsub implements Runnable {
                 // initiate handshake
                 new Thread(() -> {
                     while (!ready) {
-                        System.out.println("[DEBUG] attempting to start a handshake");
-                        try { System.out.println("peers: " + ipfs.pubsub.peers(roomName));
+                        debug("attempting to start a handshake");
+                        try { debug("peers: " + ipfs.pubsub.peers(roomName));
                         } catch (IOException ignore) {}
                         try { ipfs.pubsub.pub(roomName, createOutgoingRsaText());
                         } catch (Exception e) { e.printStackTrace(); }
                         try { Thread.sleep(10000);
                         } catch (InterruptedException ignore) {}
                     }
-                    System.out.println("initialized");
+                    //System.out.println("initialized");
                 }).start();
 
                 // write out each line of the stream to a file and check if they are one of the users
@@ -140,48 +141,16 @@ public class Pubsub implements Runnable {
 
                         Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
                         if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
-                            if (!isBase64(decodedString)) return;
-                            //TODO: verify that this is someone we actually want to perform a handshake with
-                            try { // stage 1
-                                System.out.println("[DEBUG] attempting handshake stage 1");
-                                PublicKey key = parseIncomingRsaText(decodedString);
-                                if (key == null) throw new Exception();
-                                //TODO: implement check to ensure no suspicious accounts are listening in
-                                ipfs.pubsub.pub(roomName, createOutgoingAesText(key));
-//                                    //TODO create user object and add it to the list for the room and for user
-//                                    if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
-                                System.out.println("[DEBUG] completed handshake stage 1");
-                            } catch (Exception ignore) { // stage 2
-                                System.out.println("[DEBUG] attempting handshake stage 2");
-                                try {
-                                    Pair<SecretKey, String> pair = parseIncomingAesKey(decodedString);
-                                    if (pair == null) return;
-                                    if (pair.getKey() == null) throw new Exception();
-                                    yourself.addSecretKey(sender, pair);
-                                    ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
-                                    if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) ready = true;
-                                    System.out.println("[DEBUG] completed handshake stage 2");
-                                } catch (Exception ignore2) { // stage 3
-                                    System.out.println("[DEBUG] attempting handshake stage 3");
-                                    try {
-                                        String decrypted = Encryption.decrypt(decodedString, aesKey, iv);
-                                        String[] joined = decrypted.split("\\|");
-                                        if (joined.length != 2 || !isBase64(joined[0])) return;
-                                        byte[] bytes = Base64.getDecoder().decode(joined[0]);
-                                        SecretKey key = new SecretKeySpec(bytes, "AES");
-                                        yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
-                                        ready = true;
-                                        System.out.println("[DEBUG] completed handshake stage 3");
-                                    } catch (Exception ignore3) {}
-                                }
-                            }
-
+                            shakeHands(sender, decodedString);
                             return;
                         }
 
                         String decryptedMessage;
                         try { decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
-                        } catch (Exception e) { return; }
+                        } catch (Exception e) {
+                            shakeHands(sender, decodedString);
+                            return;
+                        }
 
                         String[] unparsedMessage = decryptedMessage.split("\\*", 4);
                         if (unparsedMessage.length != 4) return; // abort if the message is not formatted correctly
@@ -193,7 +162,7 @@ public class Pubsub implements Runnable {
                         System.out.println(String.join("  ", stringyMessage.split(",", 4)));
 
                         Message message = addMessage(unparsedMessage);
-
+                        //TODO: better message save stuff
                         // process the message according to its type
                         switch (message.getMessageType()) {
                             case PUBLIC:
@@ -226,6 +195,44 @@ public class Pubsub implements Runnable {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void shakeHands(String sender, String message) {
+        if (!isBase64(message)) return;
+        //TODO: verify that this is someone we actually want to perform a handshake with
+        try { // stage 1
+            debug("attempting handshake stage 1");
+            PublicKey key = parseIncomingRsaText(message);
+            if (key == null) throw new Exception();
+            //TODO: implement check to ensure no suspicious accounts are listening in
+            ipfs.pubsub.pub(roomName, createOutgoingAesText(key));
+            //TODO create user object and add it to the list for the room and for user
+//          if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
+            debug("completed handshake stage 1");
+        } catch (Exception ignore) { // stage 2
+            debug("attempting handshake stage 2");
+            try {
+                Pair<SecretKey, String> pair = parseIncomingAesKey(message);
+                if (pair == null) return;
+                if (pair.getKey() == null) throw new Exception();
+                yourself.addSecretKey(sender, pair);
+                ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
+                if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) ready = true;
+                debug("completed handshake stage 2");
+            } catch (Exception ignore2) { // stage 3
+                debug("attempting handshake stage 3");
+                try {
+                    String decrypted = Encryption.decrypt(message, aesKey, iv);
+                    String[] joined = decrypted.split("\\|");
+                    if (joined.length != 2 || !isBase64(joined[0])) return;
+                    byte[] bytes = Base64.getDecoder().decode(joined[0]);
+                    SecretKey key = new SecretKeySpec(bytes, "AES");
+                    yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
+                    ready = true;
+                    debug("completed handshake stage 3");
+                } catch (Exception ignore3) {}
+            }
         }
     }
 
@@ -370,5 +377,9 @@ public class Pubsub implements Runnable {
 
     private void closeApp() {
         messages.clear();
+    }
+
+    private void debug(String message) {
+        if (DEBUG) System.out.println("[DEBUG] " + message);
     }
 }
