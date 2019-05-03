@@ -3,6 +3,7 @@ public enum MessageType {
     READ_RESPONSE(1),
     COMMENT(2),
     POST(3),
+    EDIT(4),
     UNKNOWN(-1);
 
     private final int id;

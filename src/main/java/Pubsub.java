@@ -38,15 +38,18 @@ import java.util.stream.Stream;
 public class Pubsub implements Runnable {
 
     private User yourself;
-    private boolean saveMessage;
     private Stream<Map<String, Object>> room;
     private String roomName;
     private IPFS ipfs;
     //    Username and hash
     private HashMap<String, String> users;
     private int numUsersFound;
-    private ArrayList<Message> messages;
     private ArrayList<OtherUser> usersInRoom;
+
+    // messages
+    private boolean saveMessage;
+    private ArrayList<Message> messages;
+    private HashMap<Long, Message> messageLookup;
 
     // encryption
     private SecretKey aesKey;
@@ -55,19 +58,22 @@ public class Pubsub implements Runnable {
     private PublicKey publicKey;
 
     private boolean ready;
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
-    Pubsub(User yourself, String roomName, Boolean saveMessage) {
+    Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
         try {
             this.yourself = yourself;
-            this.saveMessage = saveMessage;
             users = new HashMap<>();
             this.roomName = roomName;
             ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
             room = ipfs.pubsub.sub(roomName);
-            messages = new ArrayList<>();
             usersInRoom = new ArrayList<>();
+
+            // messages
+            this.saveMessage = saveMessage;
+            messages = new ArrayList<>();
+            messageLookup = new HashMap<>();
 
             //encryption
             aesKey = Encryption.generateAESkey();
@@ -114,16 +120,23 @@ public class Pubsub implements Runnable {
 
                 // initiate handshake
                 new Thread(() -> {
-                    while (!ready) {
-                        debug("attempting to start a handshake");
-                        try { debug("peers: " + ipfs.pubsub.peers(roomName));
+                    String lastPeers = "";
+                    while (true) {
+                        if (DEBUG)
+                        try {
+                            String currentPeers = ipfs.pubsub.peers(roomName).toString();
+                            if (!currentPeers.equals(lastPeers)) {
+                                lastPeers = currentPeers;
+                                debug("peers: " + currentPeers);
+                            }
                         } catch (IOException ignore) {}
-                        try { ipfs.pubsub.pub(roomName, createOutgoingRsaText());
+                        if (!ready)
+                        try { debug("attempting to start a handshake");
+                            ipfs.pubsub.pub(roomName, createOutgoingRsaText());
                         } catch (Exception e) { e.printStackTrace(); }
                         try { Thread.sleep(10000);
                         } catch (InterruptedException ignore) {}
                     }
-                    //System.out.println("initialized");
                 }).start();
 
                 // write out each line of the stream to a file and check if they are one of the users
@@ -161,31 +174,49 @@ public class Pubsub implements Runnable {
                                 unparsedMessage[3].substring(0, unparsedMessage[3].length()-1);
                         System.out.println(String.join("  ", stringyMessage.split(",", 4)));
 
-                        Message message = addMessage(unparsedMessage);
+                        Message message = parseMessage(unparsedMessage);
                         //TODO: better message save stuff
+                        //TODO: decide if the message should be stored in messages
                         // process the message according to its type
                         switch (message.getMessageType()) {
-                            case PUBLIC:
+                            case PUBLIC: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
                                 fw.write(stringyMessage + "\n");
                                 fw.flush();
                                 break;
+                            }
 
-                            case READ_RESPONSE:
-                                if (!decryptedMessage.equals(IPFSnonPubsub.ipfsID)) break;
-                                setAsSeen(Long.parseLong(unparsedMessage[1]));
+                            case READ_RESPONSE: {
+                                Message msg = messageLookup.get(message.getMessageId());
+                                if (msg != null) msg.editSeen(true);
                                 break;
+                            }
 
-                            case COMMENT:
+                            case COMMENT: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
                                 SocialMediaFeed.posts.put(Long.parseLong(message.getAuthor().split("#")[0]), new Post(unparsedMessage));
                                 break;
+                            }
 
-                            case POST:
+                            case POST: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
                                 //TODO: handle receiving a social media post
                                 break;
+                            }
 
-                            case UNKNOWN:
+                            case EDIT: {
+                                Message msg = messageLookup.get(message.getMessageId());
+                                if (msg != null) msg.editContent(message.getContent());
+                                break;
+                            }
+
+                            case UNKNOWN: {
                                 //TODO: handle any unknown messages
                                 break;
+                            }
                         }
 
                     } catch (IOException | NullPointerException e) {
@@ -242,7 +273,7 @@ public class Pubsub implements Runnable {
      * @param decryptedMessage Array of all the parts of a decrypted message. index 0 = message id, 1 = timestamp, 2 = username, 3 = message content
      * @return created message
      */
-    private Message addMessage(String[] decryptedMessage) {
+    private Message parseMessage(String[] decryptedMessage) {
         if (decryptedMessage.length != 4)
             throw new IllegalArgumentException("decryptedMessage is length " + decryptedMessage.length + " when it should be length 4");
 
@@ -268,9 +299,7 @@ public class Pubsub implements Runnable {
         } catch (NumberFormatException nfe) {
             type = MessageType.UNKNOWN;
         }
-        Message message = new Message(messageId, timestamp, username, content, type,false);
-        messages.add(message);
-        return message;
+        return new Message(messageId, timestamp, username, content, type,false);
     }
 
     /**
@@ -301,6 +330,15 @@ public class Pubsub implements Runnable {
         byte[] encrypted = Encryption.encryptWithRsa(joined, publicKey);
         return Base64.getEncoder().encodeToString(encrypted);
     }
+
+    /**
+     *
+     * @param text
+     * @return a pair containing the SecretKey and initVector or null if the contents could not be parsed out
+     * @throws BadPaddingException
+     * @throws InvalidKeyException
+     * @throws IllegalBlockSizeException
+     */
     private Pair<SecretKey, String> parseIncomingAesKey(String text)
             throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
         if (!isBase64(text)) return null;
@@ -359,16 +397,25 @@ public class Pubsub implements Runnable {
     }
 
     /**
-     * Marks the specified message as read
-     *
-     * @param messageId message id of the message to be marked as read
+     * Edits the content of an existing message.
+     * @param oldMessage message that you will be editing
+     * @param newContent the new message content
      */
-    private void setAsSeen(long messageId) {
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            if (messages.get(i).getMessageId() == messageId) {
-                messages.get(i).editSeen(true);
-            }
-        }
+    protected void editMessage(Message oldMessage, String newContent) {
+        // ensure a handshake has already occurred before sending
+        if (!ready) throw new IllegalStateException("cannot send prior to handshake");
+
+        try {
+            long time = System.currentTimeMillis();
+            String[] message = new String[]{
+                    String.valueOf(oldMessage.getMessageId()),
+                    String.valueOf(time),
+                    yourself.getUserName(),
+                    newContent+MessageType.EDIT.getId()
+            };
+            String encPhrase = Encryption.encrypt(String.join("*", message), aesKey, iv);
+            ipfs.pubsub.pub(roomName, encPhrase);
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private boolean isBase64(String s) {
@@ -376,7 +423,9 @@ public class Pubsub implements Runnable {
     }
 
     private void closeApp() {
+        //TODO: save messages to file
         messages.clear();
+        messageLookup.clear();
     }
 
     private void debug(String message) {
