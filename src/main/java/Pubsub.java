@@ -189,18 +189,6 @@ public class Pubsub implements Runnable {
                                     fw.flush();
                                 }
 
-                                //if (message.getAuthor().equals(yourself.getUserName())) {
-//                                    if (message.getContent().startsWith("--edit")) {
-//                                        String[] split = message.getContent().split(" ", 3);
-//                                        if (split.length != 3) return;
-//                                        try {
-//                                            long msgId = Long.parseLong(split[1]);
-//                                            Message msg = messageLookup.get(msgId);
-//                                            if (msg == null || !msg.getAuthor().equals(message.getAuthor())) return;
-//                                            editMessage(msg, split[2]);
-//                                        } catch (NumberFormatException ignore) {}
-//                                    }
-                                //}
                                 break;
                             }
 
@@ -278,7 +266,8 @@ public class Pubsub implements Runnable {
                 if (pair.getKey() == null) throw new Exception();
                 yourself.addSecretKey(sender, pair);
                 ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
-                if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) ready = true;
+                //if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded()))
+                    ready = true;
                 debug("completed handshake stage 2");
             } catch (Exception ignore2) { // stage 3
                 debug("attempting handshake stage 3");
