@@ -39,7 +39,6 @@ public class Pubsub implements Runnable {
     private IPFS ipfs;
     //    Username and hash
     private HashMap<String, String> users;
-    private int numUsersFound;
     private ArrayList<OtherUser> usersInRoom;
 
     // messages
@@ -54,11 +53,10 @@ public class Pubsub implements Runnable {
     private PublicKey publicKey;
 
     private boolean ready;
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
-//        UI.taDisplay.append("Roomname" + roomName);
         try {
             this.yourself = yourself;
             users = new HashMap<>();
@@ -174,7 +172,6 @@ public class Pubsub implements Runnable {
                                 unparsedMessage[2].split("#",3)[0]+","+
                                 unparsedMessage[3].substring(0, unparsedMessage[3].length()-1);
                         System.out.println(String.join("  ", stringyMessage.split(",", 4)));
-                        UI.taDisplay.append(String.join("  ", stringyMessage.split(",", 4)));
 
                         Message message = parseMessage(unparsedMessage);
                         //TODO: better message save stuff
