@@ -74,7 +74,7 @@ public class Pubsub implements Runnable {
             aesKey = Encryption.generateAESkey();
             byte[] b = new byte[16];
             new SecureRandom().nextBytes(b);
-            iv = Base64.getEncoder().encodeToString(b);
+            iv = MyBase64.encode(b);
             KeyPair keypair = Encryption.generateKeys();
             privateKey = keypair.getPrivate();
             publicKey = keypair.getPublic();
@@ -110,7 +110,7 @@ public class Pubsub implements Runnable {
 
         try {
 
-            File file = new File(roomName);
+            File file = new File( roomName);
             if(!file.exists()) file.createNewFile();
             loadMessagesFromFile(new File(roomName));
             printLastMessages(20);
@@ -122,17 +122,17 @@ public class Pubsub implements Runnable {
                     String lastPeers = "";
                     while (true) {
                         if (DEBUG)
-                        try {
-                            String currentPeers = ipfs.pubsub.peers(roomName).toString();
-                            if (!currentPeers.equals(lastPeers)) {
-                                lastPeers = currentPeers;
-                                debug("peers: " + currentPeers);
-                            }
-                        } catch (IOException ignore) {}
+                            try {
+                                String currentPeers = ipfs.pubsub.peers(roomName).toString();
+                                if (!currentPeers.equals(lastPeers)) {
+                                    lastPeers = currentPeers;
+                                    debug("peers: " + currentPeers);
+                                }
+                            } catch (IOException ignore) {}
                         if (!ready)
-                        try { debug("attempting to start a handshake");
-                            ipfs.pubsub.pub(roomName, createOutgoingRsaText());
-                        } catch (Exception e) { e.printStackTrace(); }
+                            try { debug("attempting to start a handshake");
+                                ipfs.pubsub.pub(roomName, createOutgoingRsaText());
+                            } catch (Exception e) { e.printStackTrace(); }
                         try { Thread.sleep(10000);
                         } catch (InterruptedException ignore) {}
                     }
@@ -144,7 +144,7 @@ public class Pubsub implements Runnable {
                     try {
 
                         String base64Data = stringObjectMap.values().toString().split(",")[1].trim();
-                        byte[] decodedBytes = Base64.getDecoder().decode(base64Data);
+                        byte[] decodedBytes = MyBase64.decode(base64Data);
 //                        For some reason it removes the +s and adds spaces which throw errors because that is not a thing in an aes string
                         String decodedString = new String(decodedBytes).replaceAll(" ", "+");
 
@@ -171,8 +171,10 @@ public class Pubsub implements Runnable {
                                 getTime(unparsedMessage[1])+","+
                                 unparsedMessage[2].split("#",3)[0]+","+
                                 unparsedMessage[3].substring(0, unparsedMessage[3].length()-1);
-                        System.out.println(String.join("  ", stringyMessage.split(",", 4)));
-
+//                        System.out.println(String.join("  ", stringyMessage.split(",", 4)));
+                        StringBuilder sb = new StringBuilder();
+                        for(String s : stringyMessage.split(",",4)) sb.append(s + "  ");
+                        System.out.println(sb.toString());
                         Message message = parseMessage(unparsedMessage);
                         //TODO: better message save stuff
                         //TODO: decide if the message should be stored in messages
@@ -262,9 +264,9 @@ public class Pubsub implements Runnable {
                 if (pair == null) return;
                 if (pair.getKey() == null) throw new Exception();
                 yourself.addSecretKey(sender, pair);
-                ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
+                ipfs.pubsub.pub(roomName, Encryption.encrypt(MyBase64.encode(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
                 //if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded()))
-                    ready = true;
+                ready = true;
                 debug("completed handshake stage 2");
             } catch (Exception ignore2) { // stage 3
                 debug("attempting handshake stage 3");
@@ -272,7 +274,7 @@ public class Pubsub implements Runnable {
                     String decrypted = Encryption.decrypt(message, aesKey, iv);
                     String[] joined = decrypted.split("\\|");
                     if (joined.length != 2 || !isBase64(joined[0])) return;
-                    byte[] bytes = Base64.getDecoder().decode(joined[0]);
+                    byte[] bytes = MyBase64.decode(joined[0]);
                     SecretKey key = new SecretKeySpec(bytes, "AES");
                     yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
                     ready = true;
@@ -342,20 +344,20 @@ public class Pubsub implements Runnable {
     }
 
     private String createOutgoingRsaText() {
-        return Base64.getEncoder().encodeToString(publicKey.getEncoded());
+        return MyBase64.encode(publicKey.getEncoded());
     }
     private PublicKey parseIncomingRsaText(String text)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
         if (!isBase64(text)) return null;
-        byte[] key = Base64.getDecoder().decode(text);
+        byte[] key = MyBase64.decode(text);
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
     }
     private String createOutgoingAesText(PublicKey publicKey)
             throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
-        Objects.requireNonNull(publicKey, "public key cannot be null");
-        String joined = Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv;
+        if (publicKey == null) throw new InvalidKeyException("public key cannot be null");
+        String joined = MyBase64.encode(aesKey.getEncoded())+"|"+iv;
         byte[] encrypted = Encryption.encryptWithRsa(joined, publicKey);
-        return Base64.getEncoder().encodeToString(encrypted);
+        return MyBase64.encode(encrypted);
     }
 
     /**

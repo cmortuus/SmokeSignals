@@ -23,53 +23,56 @@ class User {
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventually change this from one large file to one file that is for your username or aliases
     //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
-    User(String user) throws IOException {
+    User(String user) {
+        try {
+            userName = user;
+            rooms = new HashMap<>();
+            secretKeys = new HashMap<>();
+            otherUsers = new ArrayList<>();
+            executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
 
-        userName = user;
-        rooms = new HashMap<>();
-        secretKeys = new HashMap<>();
-        otherUsers = new ArrayList<>();
-        executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
+            // Create the file or open it
+            File file = new File("users.txt");
+            FileWriter fw = new FileWriter(file, true);
 
-        // Create the file or open it
-        File file = new File("users.txt");
-        FileWriter fw = new FileWriter(file, true);
+            try (Scanner scnr = new Scanner(new File("users.txt"))) {
+                if (!scnr.hasNextLine()) { // the file is empty
+                    // generate the random discriminator between max and min
+                    int min = 100000;
+                    int max = 1000000;
+                    int nums = new SecureRandom().nextInt((max - min) + 1) + min;
 
-        try (Scanner scnr = new Scanner(new File("users.txt"))) {
-            if (!scnr.hasNextLine()) { // the file is empty
-                // generate the random discriminator between max and min
-                int min = 100000;
-                int max = 1000000;
-                int nums = new SecureRandom().nextInt((max - min) + 1) + min;
+                    userName = user + '#' + nums;
+                    fw.append(userName).append("\n");
+                    System.out.println(userName);
+                    fw.close();
 
-                userName = user + '#' + nums;
-                fw.append(userName).append("\n");
-                System.out.println(userName);
-                fw.close();
+                } else { // the file has content already stored in it
 
-            } else { // the file has content already stored in it
-
-                // check if the file contains the specified username
-                String tempLine;
-                while (scnr.hasNextLine()) {
-                    tempLine = scnr.nextLine();
-                    if (tempLine.split("#",2)[0].equals(user)) {
-                        userName = tempLine;
-                        fw.close();
-                        return;
+                    // check if the file contains the specified username
+                    String tempLine;
+                    while (scnr.hasNextLine()) {
+                        tempLine = scnr.nextLine();
+                        if (tempLine.split("#", 2)[0].equals(user)) {
+                            userName = tempLine;
+                            fw.close();
+                            return;
+                        }
                     }
+
+                    // generate the random discriminator between max and min
+                    int min = 100000;
+                    int max = 1000000;
+                    int nums = new SecureRandom().nextInt((max - min) + 1) + min;
+
+                    userName = user + '#' + nums;
+                    fw.append(userName).append("\n");
+                    System.out.println(userName);
+                    fw.close();
                 }
-
-                // generate the random discriminator between max and min
-                int min = 100000;
-                int max = 1000000;
-                int nums = new SecureRandom().nextInt((max - min) + 1) + min;
-
-                userName = user + '#' + nums;
-                fw.append(userName).append("\n");
-                System.out.println(userName);
-                fw.close();
             }
+        }catch (IOException e){
+            e.printStackTrace();
         }
     }
 
@@ -108,7 +111,7 @@ class User {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }else{
+        } else {
             System.out.println("The username was of an invalid format");
         }
     }
@@ -127,9 +130,9 @@ class User {
 //            rooms.get(roomName).users.put(otherUser, null);
 //            Test the room
             executorService.submit(rooms.get(roomName));
-                rooms.get(roomName).sendMessage("1123*1231*2312*3123");
-                rooms.get(roomName).sendMessage("hello");
-        }catch (Exception e) {
+            rooms.get(roomName).sendMessage("1123*1231*2312*3123");
+            rooms.get(roomName).sendMessage("hello");
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -185,6 +188,7 @@ class User {
 
     /**
      * Checks if the passed string is properly formatted as username#discriminator
+     *
      * @param username name to check
      * @return true if the format is valid
      */
