@@ -13,13 +13,14 @@ public class UI extends Frame implements KeyListener {
 
     static {
         try {
-            me = new User("Caleb");
+            me = new User("Christian");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static String room = me.joinExistingRoom("Christian#234234");
+    //private static String room = me.joinExistingRoom("Christian#234234");
+    private static String room = me.joinExistingRoom("Caleb#184460");
 
 
     private TextField tfInput;  // Single-line TextField to receive tfInput key

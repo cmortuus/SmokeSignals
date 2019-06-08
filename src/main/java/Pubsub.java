@@ -1,5 +1,8 @@
 import io.ipfs.api.IPFS;
 import io.ipfs.multiaddr.MultiAddress;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -58,7 +61,6 @@ public class Pubsub implements Runnable {
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
-//        UI.taDisplay.append("Roomname" + roomName);
         try {
             this.yourself = yourself;
             users = new HashMap<>();
@@ -112,9 +114,11 @@ public class Pubsub implements Runnable {
 
         try {
 
+            // ensure savefile exists and load saved messages
             File file = new File(roomName);
             if(!file.exists()) file.createNewFile();
             loadMessagesFromFile(new File(roomName));
+
             printLastMessages(20);
 
             try (FileWriter fw = new FileWriter(file, true)) {
@@ -166,17 +170,9 @@ public class Pubsub implements Runnable {
                             return;
                         }
 
-                        String[] unparsedMessage = decryptedMessage.split("\\*", 4);
-                        if (unparsedMessage.length != 4) return; // abort if the message is not formatted correctly
+                        if (!isJson(decryptedMessage)) return;
+                        Message message = parseMessage(decryptedMessage);
 
-                        String stringyMessage = unparsedMessage[0]+","+
-                                getTime(unparsedMessage[1])+","+
-                                unparsedMessage[2].split("#",3)[0]+","+
-                                unparsedMessage[3].substring(0, unparsedMessage[3].length()-1);
-                        System.out.println(String.join("  ", stringyMessage.split(",", 4)));
-                        UI.taDisplay.append(String.join("  ", stringyMessage.split(",", 4)));
-
-                        Message message = parseMessage(unparsedMessage);
                         //TODO: better message save stuff
                         //TODO: decide if the message should be stored in messages
                         // process the message according to its type
@@ -189,6 +185,28 @@ public class Pubsub implements Runnable {
                                     fw.flush();
                                 }
 
+                                System.out.println(message.getMessageId() + "  " +
+                                        getTime(message.getTimestampLong()) + "  " +
+                                        message.getAuthor().split("#", 2)[0] + "  " +
+                                        message.getContent());
+
+                                if (message.getAuthor().equals(yourself.getUserName())) {
+                                    if (message.getContent().startsWith("--edit")) {
+                                        String[] split = message.getContent().split(" ", 3);
+                                        if (split.length != 3) return;
+                                        try {
+                                            long msgId = Long.parseLong(split[1]);
+                                            Message msg = messageLookup.get(msgId);
+                                            if (msg == null || !msg.getAuthor().equals(message.getAuthor())) return;
+                                            editMessage(msg, split[2]);
+                                        } catch (NumberFormatException ignore) {}
+                                    } else if (message.getContent().equals("--shutdown")) {
+                                        sendMessage("[SYSTEM] shutting down in 5 seconds");
+                                        try { Thread.sleep(5000);
+                                        } catch (InterruptedException ignore) {}
+                                        System.exit(0);
+                                    }
+                                }
                                 break;
                             }
 
@@ -205,7 +223,7 @@ public class Pubsub implements Runnable {
                                     fw.write(message.toString() + "\n");
                                     fw.flush();
                                 }
-                                SocialMediaFeed.posts.put(Long.parseLong(message.getAuthor().split("#")[0]), new Post(unparsedMessage));
+                                SocialMediaFeed.posts.put(Long.parseLong(message.getAuthor().split("#")[0]), new Post(message));
                                 break;
                             }
 
@@ -266,7 +284,7 @@ public class Pubsub implements Runnable {
                 if (pair.getKey() == null) throw new Exception();
                 yourself.addSecretKey(sender, pair);
                 ipfs.pubsub.pub(roomName, Encryption.encrypt(Base64.getEncoder().encodeToString(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
-                //if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded()))
+                if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded()))
                     ready = true;
                 debug("completed handshake stage 2");
             } catch (Exception ignore2) { // stage 3
@@ -286,38 +304,13 @@ public class Pubsub implements Runnable {
     }
 
     /**
-     * Adds message to memory where we are temp storing it. Sending it to file is elsewhere
+     * Converts properly formatted JSON into the {@link Message} object
      *
-     * @param decryptedMessage Array of all the parts of a decrypted message. index 0 = message id, 1 = timestamp, 2 = username, 3 = message content
-     * @return created message
+     * @param json Array of all the parts of a decrypted message. index 0 = message id, 1 = timestamp, 2 = username, 3 = message content
+     * @return {@link Message} object
      */
-    private Message parseMessage(String[] decryptedMessage) {
-        if (decryptedMessage.length != 4)
-            throw new IllegalArgumentException("decryptedMessage is length " + decryptedMessage.length + " when it should be length 4");
-
-        long messageId, timestamp;
-        MessageType type;
-        String username = decryptedMessage[2];
-        String content = decryptedMessage[3];
-        // strip trailing identifier from content
-        content = content.substring(0, content.length() - 1);
-
-        try {
-            messageId = Long.parseLong(decryptedMessage[0]);
-        } catch (NumberFormatException nfe) {
-            throw new IllegalArgumentException("cannot parse message id (long) from \"" + decryptedMessage[0] + "\"");
-        }
-        try {
-            timestamp = Long.parseLong(decryptedMessage[1]);
-        } catch (NumberFormatException nfe) {
-            throw new IllegalArgumentException("cannot parse timestamp long from \"" + decryptedMessage[1] + "\"");
-        }
-        try {
-            type = MessageType.values()[Integer.parseInt(decryptedMessage[3].substring(decryptedMessage[3].length()-1))];
-        } catch (NumberFormatException nfe) {
-            type = MessageType.UNKNOWN;
-        }
-        return new Message(messageId, timestamp, type, false, username, content);
+    private Message parseMessage(String json) {
+        return new Message(json);
     }
 
     /**
@@ -328,8 +321,7 @@ public class Pubsub implements Runnable {
      * @return The human readable time that the message was sent at
      */
     private String getTime(String time) {
-        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss");
-        return sdf.format(new Date(Long.parseLong(time)));
+        return getTime(Long.parseLong(time));
     }
 
     /**
@@ -384,22 +376,18 @@ public class Pubsub implements Runnable {
     /**
      * Send a message into the room. [this method is for internal use]
      *
-     * @param phrase    text to be sent into the connected room
+     * @param message   text to be sent into the connected room
      * @param type      type of message (See {@link MessageType})
      */
-    protected void writeToPubsub(String phrase, MessageType type) {
+    protected void writeToPubsub(String message, MessageType type) {
         // ensure a handshake has already occurred before sending
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
         try {
             long time = System.currentTimeMillis();
-            String[] message = new String[]{
-                    String.valueOf(phrase.hashCode()+time),
-                    String.valueOf(time),
-                    yourself.getUserName(),
-                    phrase+type.getId()
-            };
-            String encPhrase = Encryption.encrypt(String.join("*", message), aesKey, iv);
+            long id = message.hashCode()+time;
+            Message _message = new Message(id, time, type, false, yourself.getUserName(), message);
+            String encPhrase = Encryption.encrypt(_message.toString(), aesKey, iv);
             ipfs.pubsub.pub(roomName, encPhrase);
         } catch (Exception e) { e.printStackTrace(); }
     }
@@ -408,22 +396,22 @@ public class Pubsub implements Runnable {
      * Write the message to the specified room. [this method is for internal use]
      *
      * @param roomName  the room to send the message to
-     * @param phrase    text to be sent into the specified room
+     * @param message   text to be sent into the specified room
      * @param type      type of message (See {@link MessageType})
      */
-    protected void writeToPubsub(String roomName, String phrase, MessageType type) {
+    protected void writeToPubsub(String roomName, String message, MessageType type) {
         // ensure a handshake has already occurred before sending
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
         try {
             long time = System.currentTimeMillis();
-            String encPhrase = Encryption.encrypt(phrase.hashCode() + time + "*" + System.currentTimeMillis() + "*" + yourself.getUserName() + "*" + phrase + type.getId(), aesKey, iv);
+            long id = message.hashCode()+time;
+            Message _message = new Message(id, time, type, false, yourself.getUserName(), message);
+            String encPhrase = Encryption.encrypt(_message.toString(), aesKey, iv);
 //            It breaks if you take this out
 //            Encryption.decrypt(encPhrase, aesKey);
             ipfs.pubsub.pub(roomName, encPhrase);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     /**
@@ -453,10 +441,11 @@ public class Pubsub implements Runnable {
         try (Scanner scn = new Scanner(file)) {
             while (scn.hasNextLine()) {
                 String line = scn.nextLine();
-                if (!line.matches("([0-9]+\\|[0-9]+\\|[0-9]+\\|(true|false)\\|.+\\|.+)")) continue;
-                Message msg = new Message(line);
-                messages.add(msg);
-                messageLookup.put(msg.getMessageId(), msg);
+                try {
+                    Message _message = new Message(line);
+                    messages.add(_message);
+                    messageLookup.put(_message.getMessageId(), _message);
+                } catch (Exception e) { e.printStackTrace(); }
             }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -467,13 +456,21 @@ public class Pubsub implements Runnable {
         StringBuilder sb = new StringBuilder();
         for (int i = Math.max(0, messages.size()-n); i < messages.size(); i++) {
             Message msg = messages.get(i);
-            sb.append(msg.getMessageId()).append("  ").append(getTime(msg.getTimestampLong())).append("  ").append(msg.getAuthor().split("#", 2)[0]).append(">  ").append(msg.getContent()).append("\n");
+            sb.append(msg.getMessageId()).append("  ").append(getTime(msg.getTimestampLong())).append("  ").append(msg.getAuthor().split("#", 2)[0]).append("  ").append(msg.getContent()).append("\n");
         }
         System.out.println(sb.toString());
     }
 
     private boolean isBase64(String s) {
         return s.matches("^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$");
+    }
+
+    private boolean isJson(String s) {
+        try { new JSONObject(s);
+        } catch (JSONException ex) {
+            try { new JSONArray(s);
+            } catch (JSONException ex1) { return false; }
+        } return true;
     }
 
     private void closeApp() {

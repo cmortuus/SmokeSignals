@@ -1,3 +1,5 @@
+import org.json.JSONObject;
+
 import java.sql.Timestamp;
 import java.util.Objects;
 
@@ -33,28 +35,18 @@ public class Message {
     }
 
     /**
-     * Creates a new message object from the string representation of the message
+     * Creates a new message object from the json representation of the message
      *
-     * @param messageData (String) message-id|timestamp|type-id|seen|author|content
-     * @throws IllegalArgumentException if the string is improperly formatted
+     * @param json JSON text formatted as a message object
      */
-    public Message(String messageData) {
-//        if (!messageData.matches("([0-9]+\\|[0-9]+\\|[0-9]+\\|(true|false)\\|.+\\|.+)"))
-//            throw new IllegalArgumentException("does not follow the format \"message-id|timestamp|type-id|seen|author#discriminator|content\"");
-        if (messageData.isEmpty()) throw new IllegalArgumentException("does not follow the format \"message-id|timestamp|type-id|seen|author#discriminator|content\"");
-        String[] split = messageData.split("\\|",6);
-        if (split.length != 6) throw new IllegalArgumentException("does not follow the format \"message-id|timestamp|type-id|seen|author#discriminator|content\"");
-        try { messageId = Long.parseLong(split[0]);
-        } catch (NumberFormatException nfe) { throw new IllegalArgumentException("cannot parse (long) message id from \""+split[0]+"\""); }
-        try { timestamp = Long.parseLong(split[1]);
-        } catch (NumberFormatException nfe) { throw new IllegalArgumentException("cannot parse (long) timestamp from \""+split[1]+"\""); }
-        try { type = MessageType.values()[Integer.parseInt(split[2])];
-        } catch (NumberFormatException nfe) { throw new IllegalArgumentException("cannot parse (int) message type from \""+split[2]+"\""); }
-        if (split[3].toLowerCase().equals("true")) seen = true;
-        else if (split[3].toLowerCase().equals("false")) seen = false;
-        else throw new IllegalArgumentException("cannot parse (long) message id from \""+split[3]+"\"");
-        author = split[4];
-        content = split[5];
+    public Message(String json) {
+        JSONObject _message = new JSONObject(json);
+        this.messageId = _message.getLong("messageId");
+        this.timestamp = _message.getLong("timestamp");
+        this.type = MessageType.valueOf(_message.getString("type"));
+        this.seen = _message.getBoolean("seen");
+        this.author = _message.getString("author");
+        this.content = _message.getString("content");
     }
 
     public long getMessageId() {
@@ -94,7 +86,14 @@ public class Message {
     }
 
     @Override public String toString() {
-        return messageId+"|"+timestamp+"|"+type.getId()+"|"+seen+"|"+author+"|"+content;
+        JSONObject _message = new JSONObject();
+        _message.put("messageId", messageId)
+                .put("timestamp", timestamp)
+                .put("type", type)
+                .put("seen", seen)
+                .put("author", author)
+                .put("content", content);
+        return _message.toString();
     }
 
     @Override

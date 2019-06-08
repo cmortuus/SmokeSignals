@@ -4,7 +4,7 @@ public class Post {
     ArrayList<String> likes;
     ArrayList<String> views;
 
-    Post(String[] message){
+    Post(Message message){
         comments = new ArrayList<>();
     }
 }
