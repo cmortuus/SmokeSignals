@@ -56,10 +56,9 @@ public class Pubsub implements Runnable {
 
     // encryption
     private SecretKey aesKey;
+    private String iv;
     private PrivateKey privateKey;
     private PublicKey publicKey;
-    private String iv;
-
 
     private boolean ready;
     private static final boolean DEBUG = false;
@@ -287,6 +286,7 @@ public class Pubsub implements Runnable {
                                 yourself.saveAccounts();
                             }
                         }
+
                         case TYPING: {
 //                          TODO print in andoid that it is typing
                         }
@@ -343,6 +343,7 @@ public class Pubsub implements Runnable {
                 if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
                     ready = true;
                 debug("completed handshake stage 2");
+                writeToPubsub("", MessageType.UNKNOWN);
             } catch (Exception ignore2) { // stage 3
 
                 /*
@@ -360,6 +361,7 @@ public class Pubsub implements Runnable {
                     yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
                     ready = true;
                     debug("completed handshake stage 3");
+                    writeToPubsub("", MessageType.UNKNOWN);
                 } catch (Exception ignore3) {
                 }
             }
@@ -369,10 +371,11 @@ public class Pubsub implements Runnable {
     /**
      * Converts properly formatted JSON into the {@link Message} object
      *
-     * @param json Array of all the parts of a decrypted message. index 0 = message id, 1 = timestamp, 2 = username, 3 = message content
+     * @param json JSON String containing the message info
      * @return {@link Message} object
      */
     private Message parseMessage(String json) {
+        if (!isJson(json)) throw new IllegalArgumentException("invalid JSON formatting");
         return new Message(new JSONObject(json));
     }
 
@@ -489,6 +492,7 @@ public class Pubsub implements Runnable {
      * @param oldMessage message that you will be editing
      * @param newContent the new message content
      */
+    @Deprecated
     void editMessage(Message oldMessage, String newContent) {
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
@@ -509,6 +513,7 @@ public class Pubsub implements Runnable {
 
     private void loadMessages() {
         messages = FileLoader.loadMessages(roomName);
+        Collections.sort(messages);
         for (Message m : messages)
             messageLookup.put(m.getMessageId(), m);
     }
@@ -550,7 +555,7 @@ public class Pubsub implements Runnable {
     }
 
     private void closeApp() {
-        //TODO: save messages to file
+        saveMessages();
         messages.clear();
         messageLookup.clear();
     }
