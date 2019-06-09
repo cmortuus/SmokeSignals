@@ -6,6 +6,7 @@ public enum MessageType {
     EDIT(4),
     IDENTITY_REQUEST(5),
     IDENTITY_RESPONSE(6),
+    TYPING(7),
     UNKNOWN(-1);
 
     private final int id;

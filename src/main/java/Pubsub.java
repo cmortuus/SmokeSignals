@@ -123,19 +123,25 @@ public class Pubsub implements Runnable {
                 String lastPeers = "";
                 while (true) {
                     if (DEBUG)
-                    try {
-                        String currentPeers = ipfs.pubsub.peers(roomName).toString();
-                        if (!currentPeers.equals(lastPeers)) {
-                            lastPeers = currentPeers;
-                            debug("peers: " + currentPeers);
+                        try {
+                            String currentPeers = ipfs.pubsub.peers(roomName).toString();
+                            if (!currentPeers.equals(lastPeers)) {
+                                lastPeers = currentPeers;
+                                debug("peers: " + currentPeers);
+                            }
+                        } catch (IOException ignore) {
                         }
-                    } catch (IOException ignore) {}
                     if (!ready)
-                    try { debug("attempting to start a handshake");
-                        ipfs.pubsub.pub(roomName, createOutgoingRsaText());
-                    } catch (Exception e) { e.printStackTrace(); }
-                    try { Thread.sleep(10000);
-                    } catch (InterruptedException ignore) {}
+                        try {
+                            debug("attempting to start a handshake");
+                            ipfs.pubsub.pub(roomName, createOutgoingRsaText());
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    try {
+                        Thread.sleep(10000);
+                    } catch (InterruptedException ignore) {
+                    }
                 }
             }).start();
 
@@ -149,7 +155,7 @@ public class Pubsub implements Runnable {
                     String decodedString = new String(decodedBytes).replaceAll(" ", "+");
 
                     //TODO: is there a better way to differentiate the sender?
-                    String sender = stringObjectMap.toString().split(",",2)[0].substring(6);
+                    String sender = stringObjectMap.toString().split(",", 2)[0].substring(6);
 
                     Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
                     if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
@@ -158,7 +164,8 @@ public class Pubsub implements Runnable {
                     }
 
                     String decryptedMessage;
-                    try { decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
+                    try {
+                        decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
                     } catch (Exception e) {
                         shakeHands(sender, decodedString);
                         return;
@@ -192,11 +199,14 @@ public class Pubsub implements Runnable {
                                         Message msg = messageLookup.get(msgId);
                                         if (msg == null || msg.getAuthorId() != message.getAuthorId()) return;
                                         editMessage(msg, split[2]);
-                                    } catch (NumberFormatException ignore) {}
+                                    } catch (NumberFormatException ignore) {
+                                    }
                                 } else if (message.getContent().equals("--shutdown")) {
                                     sendMessage("[SYSTEM] shutting down in 5 seconds");
-                                    try { Thread.sleep(5000);
-                                    } catch (InterruptedException ignore) {}
+                                    try {
+                                        Thread.sleep(5000);
+                                    } catch (InterruptedException ignore) {
+                                    }
                                     System.exit(0);
                                 }
                             }
@@ -253,6 +263,9 @@ public class Pubsub implements Runnable {
                                 yourself.saveAccounts();
                             }
                         }
+                        case TYPING: {
+//                          TODO print in andoid that it is typing
+                        }
 
                         case UNKNOWN: {
                             //TODO: handle any unknown messages
@@ -302,7 +315,7 @@ public class Pubsub implements Runnable {
                 if (pair == null) return;
                 if (pair.getKey() == null) throw new Exception();
                 yourself.addSecretKey(sender, pair);
-                ipfs.pubsub.pub(roomName, Encryption.encrypt(MyBase64.encode(aesKey.getEncoded())+"|"+iv, pair.getKey(), pair.getValue()));
+                ipfs.pubsub.pub(roomName, Encryption.encrypt(MyBase64.encode(aesKey.getEncoded()) + "|" + iv, pair.getKey(), pair.getValue()));
                 if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
                     ready = true;
                 debug("completed handshake stage 2");
@@ -323,7 +336,8 @@ public class Pubsub implements Runnable {
                     yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
                     ready = true;
                     debug("completed handshake stage 3");
-                } catch (Exception ignore3) {}
+                } catch (Exception ignore3) {
+                }
             }
         }
     }
@@ -364,22 +378,23 @@ public class Pubsub implements Runnable {
     private String createOutgoingRsaText() {
         return MyBase64.encode(publicKey.getEncoded());
     }
+
     private PublicKey parseIncomingRsaText(String text)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
         if (!MyBase64.isBase64(text)) return null;
         byte[] key = MyBase64.decode(text);
         return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(key));
     }
+
     private String createOutgoingAesText(PublicKey publicKey)
             throws BadPaddingException, InvalidKeyException, IllegalBlockSizeException {
         Objects.requireNonNull(publicKey, "public key cannot be null");
-        String joined = MyBase64.encode(aesKey.getEncoded())+"|"+iv;
+        String joined = MyBase64.encode(aesKey.getEncoded()) + "|" + iv;
         byte[] encrypted = Encryption.encryptWithRsa(joined, publicKey);
         return MyBase64.encode(encrypted);
     }
 
     /**
-     *
      * @param text
      * @return a pair containing the SecretKey and initVector or null if the contents could not be parsed out
      * @throws BadPaddingException
@@ -401,42 +416,47 @@ public class Pubsub implements Runnable {
     /**
      * Send a message into the room. [this method is for internal use]
      *
-     * @param message   text to be sent into the connected room
-     * @param type      type of message (See {@link MessageType})
+     * @param message text to be sent into the connected room
+     * @param type    type of message (See {@link MessageType})
      */
     protected void writeToPubsub(String message, MessageType type) {
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
         try {
             long time = System.currentTimeMillis();
-            long id = message.hashCode()+time;
+            long id = message.hashCode() + time;
             Message _message = new Message(id, time, type, false, account.getUserId(), message);
             String encPhrase = Encryption.encrypt(_message.toString(), aesKey, iv);
             ipfs.pubsub.pub(roomName, encPhrase);
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      * Write the message to the specified room. [this method is for internal use]
      *
-     * @param roomName  the room to send the message to
-     * @param message   text to be sent into the specified room
-     * @param type      type of message (See {@link MessageType})
+     * @param roomName the room to send the message to
+     * @param message  text to be sent into the specified room
+     * @param type     type of message (See {@link MessageType})
      */
     protected void writeToPubsub(String roomName, String message, MessageType type) {
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
         try {
             long time = System.currentTimeMillis();
-            long id = message.hashCode()+time;
+            long id = message.hashCode() + time;
             Message _message = new Message(id, time, type, false, account.getUserId(), message);
             String encPhrase = Encryption.encrypt(_message.toString(), aesKey, iv);
             ipfs.pubsub.pub(roomName, encPhrase);
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      * Edits the content of an existing message.
+     *
      * @param oldMessage message that you will be editing
      * @param newContent the new message content
      */
@@ -449,11 +469,13 @@ public class Pubsub implements Runnable {
                     String.valueOf(oldMessage.getMessageId()),
                     String.valueOf(time),
                     account.getFullUsername(),
-                    newContent+MessageType.EDIT.getId()
+                    newContent + MessageType.EDIT.getId()
             };
             String encPhrase = Encryption.encrypt(String.join("*", message), aesKey, iv);
             ipfs.pubsub.pub(roomName, encPhrase);
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void loadMessages() {
@@ -464,28 +486,38 @@ public class Pubsub implements Runnable {
 
     private void saveMessages() {
         if (saveMessage) {
-            try { FileLoader.saveMessages(messages, roomName);
-            } catch (IOException e) { e.printStackTrace(); }
+            try {
+                FileLoader.saveMessages(messages, roomName);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     private void printLastMessages(int n) {
         StringBuilder sb = new StringBuilder();
-        for (int i = Math.max(0, messages.size()-n); i < messages.size(); i++) {
+        for (int i = Math.max(0, messages.size() - n); i < messages.size(); i++) {
             try {
                 Message msg = messages.get(i);
                 sb.append(msg.getMessageId()).append("  ").append(getTime(msg.getTimestampLong())).append("  ").append(account.getPeer(msg.getAuthorId()).getUsername()).append("  ").append(msg.getContent()).append("\n");
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
         System.out.println(sb.toString());
     }
 
     private boolean isJson(String s) {
-        try { new JSONObject(s);
+        try {
+            new JSONObject(s);
         } catch (JSONException ex) {
-            try { new JSONArray(s);
-            } catch (JSONException ex1) { return false; }
-        } return true;
+            try {
+                new JSONArray(s);
+            } catch (JSONException ex1) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void closeApp() {
