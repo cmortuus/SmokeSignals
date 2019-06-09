@@ -3,7 +3,6 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.Base64;
 import java.util.Objects;
 
 class Encryption {
@@ -22,17 +21,17 @@ class Encryption {
     }
 
     static String encrypt(String strToEncrypt, SecretKey secretKey, String initVector) throws Exception {
-        IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
+        IvParameterSpec iv = new IvParameterSpec(MyBase64.decode(initVector));
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
-        return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
+        return MyBase64.encode(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
     }
 
     static String decrypt(String strToDecrypt, SecretKey secretKey, String initVector) throws Exception {
-        IvParameterSpec iv = new IvParameterSpec(Base64.getDecoder().decode(initVector));
+        IvParameterSpec iv = new IvParameterSpec(MyBase64.decode(initVector));
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
-        return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)));
+        return new String(cipher.doFinal(MyBase64.decode(strToDecrypt)));
     }
 
     /**

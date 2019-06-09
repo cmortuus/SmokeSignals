@@ -12,7 +12,7 @@ public class Message {
     private long timestamp;
     private MessageType type;
     private boolean seen;
-    private String author;
+    private long authorId;
     private String content;
 
     /**
@@ -22,13 +22,13 @@ public class Message {
      * @param timestamp (long)        the timestamp of the message's creation time
      * @param type      (MessageType) what type of message this is
      * @param seen      (boolean)     whether or not the message is flagged as seen
-     * @param author    (String)      the username#discriminator of the author of the message
+     * @param authorId  (long)        the userid of the author of the message
      * @param content   (String)      the text represented by this message
      */
-    public Message(long messageId, long timestamp, MessageType type, boolean seen, String author, String content) {
+    public Message(long messageId, long timestamp, MessageType type, boolean seen, long authorId, String content) {
         this.messageId = messageId;
         this.timestamp = timestamp;
-        this.author = author;
+        this.authorId = authorId;
         this.content = content;
         this.type = type;
         this.seen = seen;
@@ -39,14 +39,15 @@ public class Message {
      *
      * @param json JSON text formatted as a message object
      */
-    public Message(String json) {
-        JSONObject _message = new JSONObject(json);
-        this.messageId = _message.getLong("messageId");
-        this.timestamp = _message.getLong("timestamp");
-        this.type = MessageType.valueOf(_message.getString("type"));
-        this.seen = _message.getBoolean("seen");
-        this.author = _message.getString("author");
-        this.content = _message.getString("content");
+    public Message(JSONObject json) {
+        if (!json.has("messageId") || !json.has("timestamp") || !json.has("type") || !json.has("seen") || !json.has("authorId") || !json.has("content"))
+            throw new IllegalArgumentException("missing fields");
+        this.messageId = json.getLong("messageId");
+        this.timestamp = json.getLong("timestamp");
+        this.type = MessageType.valueOf(json.getString("type"));
+        this.seen = json.getBoolean("seen");
+        this.authorId = json.getLong("authorId");
+        this.content = json.getString("content");
     }
 
     public long getMessageId() {
@@ -61,8 +62,8 @@ public class Message {
         return new Timestamp(timestamp);
     }
 
-    public String getAuthor() {
-        return author;
+    public long getAuthorId() {
+        return authorId;
     }
 
     public String getContent() {
@@ -85,13 +86,23 @@ public class Message {
         seen = newSeen;
     }
 
+    public JSONObject toJSONObject() {
+        return new JSONObject()
+                .put("messageId", messageId)
+                .put("timestamp", timestamp)
+                .put("type", type)
+                .put("seen", seen)
+                .put("authorId", authorId)
+                .put("content", content);
+    }
+
     @Override public String toString() {
         JSONObject _message = new JSONObject();
         _message.put("messageId", messageId)
                 .put("timestamp", timestamp)
                 .put("type", type)
                 .put("seen", seen)
-                .put("author", author)
+                .put("authorId", authorId)
                 .put("content", content);
         return _message.toString();
     }
@@ -104,13 +115,13 @@ public class Message {
         return messageId == message.messageId &&
                 timestamp == message.timestamp &&
                 seen == message.seen &&
-                Objects.equals(author, message.author) &&
+                Objects.equals(authorId, message.authorId) &&
                 Objects.equals(content, message.content) &&
                 type == message.type;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(messageId, timestamp, author, content, type, seen);
+        return Objects.hash(messageId, timestamp, authorId, content, type, seen);
     }
 }

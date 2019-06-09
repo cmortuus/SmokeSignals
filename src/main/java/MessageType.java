@@ -4,6 +4,8 @@ public enum MessageType {
     COMMENT(2),
     POST(3),
     EDIT(4),
+    IDENTITY_REQUEST(5),
+    IDENTITY_RESPONSE(6),
     UNKNOWN(-1);
 
     private final int id;

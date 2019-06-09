@@ -1,83 +1,60 @@
+import account.Account;
 
 import javax.crypto.SecretKey;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
 class User {
 
-    private String userName;
     private HashMap<String, Pubsub> rooms;
     private HashMap<String, Pair<SecretKey, String>> secretKeys;
     private ArrayList<OtherUser> otherUsers;
     private ExecutorService executorService;
+
+    private ArrayList<Account> accounts;
+    private Account yourAccount;
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO eventually change this from one large file to one file that is for your username or aliases
     //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
     User(String user) {
         try {
-            userName = user;
             rooms = new HashMap<>();
             secretKeys = new HashMap<>();
             otherUsers = new ArrayList<>();
             executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
+            accounts = FileLoader.loadAccounts("accounts.txt");
 
-            // Create the file or open it
-            File file = new File("users.txt");
-            FileWriter fw = new FileWriter(file, true);
-
-            try (Scanner scnr = new Scanner(new File("users.txt"))) {
-                if (!scnr.hasNextLine()) { // the file is empty
-                    // generate the random discriminator between max and min
-                    int min = 100000;
-                    int max = 1000000;
-                    int nums = new SecureRandom().nextInt((max - min) + 1) + min;
-
-                    userName = user + '#' + nums;
-                    fw.append(userName).append("\n");
-                    System.out.println(userName);
-                    fw.close();
-
-                } else { // the file has content already stored in it
-
-                    // check if the file contains the specified username
-                    String tempLine;
-                    while (scnr.hasNextLine()) {
-                        tempLine = scnr.nextLine();
-                        if (tempLine.split("#", 2)[0].equals(user)) {
-                            userName = tempLine;
-                            fw.close();
-                            return;
-                        }
-                    }
-
-                    // generate the random discriminator between max and min
-                    int min = 100000;
-                    int max = 1000000;
-                    int nums = new SecureRandom().nextInt((max - min) + 1) + min;
-
-                    userName = user + '#' + nums;
-                    fw.append(userName).append("\n");
-                    System.out.println(userName);
-                    fw.close();
+            for (Account account : accounts) {
+                if (account.getUsername().equals(user)) {
+                    yourAccount = account;
+                    return;
                 }
             }
+
+            yourAccount = new Account(user);
+            accounts.add(yourAccount);
+            FileLoader.saveAccounts(accounts, "accounts.txt");
         }catch (IOException e){
             e.printStackTrace();
         }
     }
 
-    public String getUserName() {
-        return userName;
+    public Account getAccount() {
+        return yourAccount;
+    }
+
+    public void saveAccounts() {
+        try {
+            FileLoader.saveAccounts(accounts, "accounts.txt");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void addSecretKey(String associatedUser, Pair<SecretKey, String> pair) {
@@ -92,55 +69,11 @@ class User {
         return otherUsers;
     }
 
-    /**
-     * Creates pubsub room and adds it to the dict(rooms)
-     *
-     * @param otherUser The username of the other person who is in the room with you This is needed to create the roomname
-     */
-    void createRoom(String otherUser) {
-        if (isValidUserFormat(otherUser)) {
-            try {
-                String roomName = turnUsersToRoom(otherUser);
-                rooms.put(roomName, new Pubsub(this, roomName, true));
-                executorService.submit(rooms.get(roomName));
-                while (true) {
-                    rooms.get(roomName).sendMessage("1123*1231*2312*3123");
-                    rooms.get(roomName).sendMessage("hello");
-                    Thread.sleep(100);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("The username was of an invalid format");
-        }
-    }
-
-
-    /**
-     * Creates pubsub room and adds it to the dict(rooms)
-     *
-     * @param otherUser The username of the other person who is in the room with you
-     */
-    void createRoom(String[] otherUser) {
-        try {
-            String roomName = turnUsersToRoom(otherUser);
-            rooms.put(roomName, new Pubsub(this, roomName, true));
-//            Add new user to the arraylist in pubsub and then send that to
-//            rooms.get(roomName).users.put(otherUser, null);
-//            Test the room
-            executorService.submit(rooms.get(roomName));
-            rooms.get(roomName).sendMessage("1123*1231*2312*3123");
-            rooms.get(roomName).sendMessage("hello");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public String joinExistingRoom(String otherUser) {
+    public String joinRoom(String otherUser) {
         if (!isValidUserFormat(otherUser))
             throw new IllegalArgumentException("user does not fit the format username#discriminator");
         String roomName = turnUsersToRoom(otherUser);
+        yourAccount.addRoom(roomName);
         rooms.put(roomName, new Pubsub(this, roomName, true));
         executorService.submit(rooms.get(roomName));
         return roomName;
@@ -165,7 +98,7 @@ class User {
      * @return the new roomname
      */
     private String turnUsersToRoom(String otherUser) {
-        String[] s = new String[]{otherUser, userName};
+        String[] s = new String[]{otherUser, yourAccount.getFullUsername()};
         Arrays.sort(s);
         return String.join("", s).replace('#', 'z');
     }
@@ -178,7 +111,7 @@ class User {
      */
     private String turnUsersToRoom(String[] users) {
         String[] s = new String[users.length];
-        s[0] = userName;
+        s[0] = yourAccount.getFullUsername();
         int i = 0;
         for (String user : users)
             s[i++] = user;
