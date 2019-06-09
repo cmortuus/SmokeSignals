@@ -179,6 +179,8 @@ public class Pubsub implements Runnable {
                     if (account.getPeer(message.getAuthorId()).getDiscriminator().equals("000000"))
                         writeToPubsub(String.valueOf(message.getAuthorId()), MessageType.IDENTITY_REQUEST);
 
+                    //System.out.println(message.toJSONObject().toString());
+
                     //TODO: better message save stuff
                     //TODO: decide if the message should be stored in messages
                     // process the message according to its type
@@ -255,6 +257,7 @@ public class Pubsub implements Runnable {
                                         .put("discriminator", account.getDiscriminator());
                                 writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
                             }
+                            break;
                         }
                         case FILE: {
                             MerkleNode merkleNode = new MerkleNode(message.getContent());
@@ -275,6 +278,7 @@ public class Pubsub implements Runnable {
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
+                            break;
                         }
 
                         case IDENTITY_RESPONSE: {
@@ -285,10 +289,12 @@ public class Pubsub implements Runnable {
                                 peer.updateDiscriminator(payload.getString("discriminator"));
                                 yourself.saveAccounts();
                             }
+                            break;
                         }
 
                         case TYPING: {
 //                          TODO print in andoid that it is typing
+                            break;
                         }
 
                         case UNKNOWN: {
