@@ -485,6 +485,7 @@ public class Pubsub implements Runnable {
 
     private void loadMessages() {
         messages = FileLoader.loadMessages(roomName);
+        Collections.sort(messages);
         for (Message m : messages)
             messageLookup.put(m.getMessageId(), m);
     }

@@ -6,7 +6,7 @@ import java.util.Objects;
 /**
  * Details about an individual message
  */
-public class Message {
+public class Message implements Comparable<Message> {
 
     private long messageId;
     private long timestamp;
@@ -123,5 +123,11 @@ public class Message {
     @Override
     public int hashCode() {
         return Objects.hash(messageId, timestamp, authorId, content, type, seen);
+    }
+
+    @Override
+    public int compareTo(Message o) {
+        if (this.timestamp == o.timestamp) return 0;
+        return Long.compare(timestamp, o.timestamp);
     }
 }
