@@ -1,9 +1,10 @@
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.Objects;
 
 class Encryption {
     //    TODO don't store these in plain text
@@ -27,11 +28,39 @@ class Encryption {
         return MyBase64.encode(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
     }
 
+    static String encrypt(byte[] bytesToEncrypt, SecretKey secretKey, String initVector) throws Exception {
+        IvParameterSpec iv = new IvParameterSpec(MyBase64.decode(initVector));
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
+        return MyBase64.encode(cipher.doFinal(bytesToEncrypt));
+    }
+
     static String decrypt(String strToDecrypt, SecretKey secretKey, String initVector) throws Exception {
         IvParameterSpec iv = new IvParameterSpec(MyBase64.decode(initVector));
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
         return new String(cipher.doFinal(MyBase64.decode(strToDecrypt)));
+    }
+
+    static SecretKey encryptFile(File file) {
+        try {
+            try (FileInputStream fileInputStream = new FileInputStream(file)) {
+                byte[] b = new byte[16];
+                new SecureRandom().nextBytes(b);
+                String iv = MyBase64.encode(b);
+                byte[] fileContent = new byte[(int) file.length()];
+                SecretKey secretKey = Encryption.generateAESkey();
+                Encryption.encrypt(fileContent, secretKey, iv);
+                fileInputStream.read(fileContent);
+                try (FileOutputStream fos = new FileOutputStream("EncryptedFile")) {
+                    fos.write(fileContent);
+                }
+                return secretKey;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -60,33 +89,6 @@ class Encryption {
             e.printStackTrace();
         }
         return null;
-    }
-
-    /**
-     * Encrypt the aes key with rsa
-     *
-     * @param publicKey
-     * @param secretKey
-     * @return
-     */
-    static byte[] encryptAesWithRsa(PublicKey publicKey, SecretKey secretKey)
-            throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        Objects.requireNonNull(rsaCipher, "RSA Cipher cannot be null");
-        rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
-        return rsaCipher.doFinal(secretKey.getEncoded());
-    }
-
-    /**
-     * Decrypt the aes key that has been encrypted with rsa
-     *
-     * @param encryptedKey
-     * @return
-     */
-    static SecretKey decryptAesKeyWithRsa(byte[] encryptedKey, PrivateKey privateKey)
-            throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        Objects.requireNonNull(rsaCipher, "RSA Cipher cannot be null");
-        rsaCipher.init(Cipher.DECRYPT_MODE, privateKey);
-        return new SecretKeySpec(rsaCipher.doFinal(encryptedKey), "AES");
     }
 
     static byte[] encryptWithRsa(String strToEncrypt, PublicKey publicKey)

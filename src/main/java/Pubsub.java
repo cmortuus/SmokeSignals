@@ -1,6 +1,7 @@
 import account.Account;
 import account.Peer;
 import io.ipfs.api.IPFS;
+import io.ipfs.api.MerkleNode;
 import io.ipfs.multiaddr.MultiAddress;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -10,6 +11,8 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -53,9 +56,10 @@ public class Pubsub implements Runnable {
 
     // encryption
     private SecretKey aesKey;
-    private String iv;
     private PrivateKey privateKey;
     private PublicKey publicKey;
+    private String iv;
+
 
     private boolean ready;
     private static final boolean DEBUG = false;
@@ -98,12 +102,12 @@ public class Pubsub implements Runnable {
      * @param message text to be sent into the chat
      * @throws IllegalStateException if the method is called prior to connecting to the room
      */
-    public void sendMessage(String message) {
+    void sendMessage(String message) {
         if (!ready) throw new IllegalStateException("not connected to chat");
         writeToPubsub(message, MessageType.PUBLIC);
     }
 
-    public boolean isReady() {
+    boolean isReady() {
         return ready;
     }
 
@@ -251,6 +255,26 @@ public class Pubsub implements Runnable {
                                 payload.put("username", account.getUsername())
                                         .put("discriminator", account.getDiscriminator());
                                 writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
+                            }
+                        }
+                        case FILE: {
+                            MerkleNode merkleNode = new MerkleNode(message.getContent());
+                            try {
+                                if (merkleNode.name.isPresent())
+                                    try (FileOutputStream fos = new FileOutputStream(merkleNode.name.get())) {
+                                        fos.write(IPFSnonPubsub.getFile(merkleNode.hash));
+                                    }
+                                else {
+                                    int i = 0;
+                                    while (!new File("Download" + i++).exists())
+                                        System.out.print("");
+                                    try (FileOutputStream fos = new FileOutputStream("download" + i)) {
+                                        fos.write(IPFSnonPubsub.getFile(merkleNode.hash));
+                                    }
+                                }
+                                IPFSnonPubsub.getFile(merkleNode.hash);
+                            } catch (IOException e) {
+                                e.printStackTrace();
                             }
                         }
 
@@ -413,13 +437,18 @@ public class Pubsub implements Runnable {
         return new Pair<>(key, split[1]);
     }
 
+    void sendFile(String filename){
+        writeToPubsub(IPFSnonPubsub.addFile(filename).hash.toString() + IPFSnonPubsub.fileKey, MessageType.FILE);
+    }
+
+
     /**
      * Send a message into the room. [this method is for internal use]
      *
      * @param message text to be sent into the connected room
      * @param type    type of message (See {@link MessageType})
      */
-    protected void writeToPubsub(String message, MessageType type) {
+    void writeToPubsub(String message, MessageType type) {
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
         try {
@@ -440,7 +469,7 @@ public class Pubsub implements Runnable {
      * @param message  text to be sent into the specified room
      * @param type     type of message (See {@link MessageType})
      */
-    protected void writeToPubsub(String roomName, String message, MessageType type) {
+    void writeToPubsub(String roomName, String message, MessageType type) {
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
         try {
@@ -460,7 +489,7 @@ public class Pubsub implements Runnable {
      * @param oldMessage message that you will be editing
      * @param newContent the new message content
      */
-    protected void editMessage(Message oldMessage, String newContent) {
+    void editMessage(Message oldMessage, String newContent) {
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
 
         try {
