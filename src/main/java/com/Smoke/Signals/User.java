@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 
 class User {
@@ -16,7 +14,6 @@ class User {
     private HashMap<String, Pubsub> rooms;
     private HashMap<String, Pair<SecretKey, String>> secretKeys;
     static private ArrayList<OtherUser> otherUsers;
-    private ExecutorService executorService;
 
     private ArrayList<Account> accounts;
     private Account yourAccount;
@@ -29,7 +26,6 @@ class User {
             rooms = new HashMap<>();
             secretKeys = new HashMap<>();
             otherUsers = new ArrayList<>();
-            executorService = Executors.newFixedThreadPool(Integer.MAX_VALUE);
             accounts = FileLoader.loadAccounts("accounts.txt");
 
             for (Account account : accounts) {
@@ -42,16 +38,16 @@ class User {
             yourAccount = new Account(user);
             accounts.add(yourAccount);
             FileLoader.saveAccounts(accounts, "accounts.txt");
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public Account getAccount() {
+    Account getAccount() {
         return yourAccount;
     }
 
-    public void saveAccounts() {
+    void saveAccounts() {
         try {
             FileLoader.saveAccounts(accounts, "accounts.txt");
         } catch (IOException e) {
@@ -59,35 +55,34 @@ class User {
         }
     }
 
-    public void addSecretKey(String associatedUser, Pair<SecretKey, String> pair) {
+    void addSecretKey(String associatedUser, Pair<SecretKey, String> pair) {
         secretKeys.put(associatedUser, pair);
     }
 
-    public Pair<SecretKey, String> getUserAesKey(String user) {
+    Pair<SecretKey, String> getUserAesKey(String user) {
         return secretKeys.get(user);
     }
 
-    public ArrayList<OtherUser> getOtherUsers() {
+    ArrayList<OtherUser> getOtherUsers() {
         return otherUsers;
     }
 
-    public String joinRoom(String otherUser) {
+    String joinRoom(String otherUser) {
         if (!isValidUserFormat(otherUser))
             throw new IllegalArgumentException("user does not fit the format username#discriminator");
         String roomName = turnUsersToRoom(otherUser);
         yourAccount.addRoom(roomName);
         rooms.put(roomName, new Pubsub(this, roomName, true));
-        executorService.submit(rooms.get(roomName));
         return roomName;
     }
 
-    public void sendToRoom(String roomName, String message) {
+    void sendToRoom(String roomName, String message) {
         if (!rooms.containsKey(roomName))
             throw new IllegalArgumentException("room does not exist");
         rooms.get(roomName).sendMessage(message);
     }
 
-    public boolean isRoomReady(String roomName) {
+    boolean isRoomReady(String roomName) {
         if (!rooms.containsKey(roomName))
             throw new IllegalArgumentException("room does not exist");
         return rooms.get(roomName).isReady();
@@ -127,7 +122,7 @@ class User {
      * @param username name to check
      * @return true if the format is valid
      */
-    static boolean isValidUserFormat(String username) {
+    private boolean isValidUserFormat(String username) {
         return username.matches("(.+#[0-9]+)");
     }
 }

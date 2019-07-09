@@ -9,6 +9,7 @@ class SocialMediaFeed extends Pubsub {
     static HashMap<Long, Post> posts;
     private User yourself;
 
+
     SocialMediaFeed(User yourself) {
         super(yourself, IPFSnonPubsub.ipfsID, true);
         posts = new HashMap<>();
@@ -23,7 +24,7 @@ class SocialMediaFeed extends Pubsub {
      */
     private void postMessage(String post) {
         for (OtherUser user : yourself.getOtherUsers()) {
-            writeToPubsub(user.hash.toString(), post, MessageType.POST);
+            writeToPubsub(user.getHash().toString(), post, MessageType.POST);
         }
     }
 
@@ -36,7 +37,7 @@ class SocialMediaFeed extends Pubsub {
      */
     private void postMessage(String post, Multihash hashOfImage) {
         for (OtherUser user : yourself.getOtherUsers()) {
-            writeToPubsub(user.hash.toString(), post + "#" + hashOfImage.toString(), MessageType.POST);
+            writeToPubsub(user.getHash().toString(), post + "#" + hashOfImage.toString(), MessageType.POST);
         }
     }
 
@@ -64,7 +65,8 @@ class SocialMediaFeed extends Pubsub {
     }
 
     /**
-     * Edit comment that has a image in it. This can either add an image or edit the image that is there.
+     * Edit comment that will finish with an image in it. This can either add an image or edit the image that is there.
+     * The comment does not need to start with an image do use this method.
      *
      * @param newContent new Text that is added
      * @param post       The original post that this message is going to be sent to

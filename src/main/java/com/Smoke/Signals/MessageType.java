@@ -17,6 +17,7 @@ public enum MessageType {
     DELETE_COMMENT(14),
     DELETE_POST(15),
     EDIT_COMMENT_WITH_IMAGE(17),
+    ERROR(18),
     UNKNOWN(-1);
 
     private final int id;

@@ -6,11 +6,11 @@ import javax.crypto.SecretKey;
 import java.security.PublicKey;
 
 class OtherUser {
-    String userName;
-    Multihash hash;
-    SecretKey secretKey;
-    PublicKey publicKey;
-    FriendType friendType;
+    private String userName;
+    private Multihash hash;
+    private SecretKey secretKey;
+    private PublicKey publicKey;
+    private FriendType friendType;
 
     OtherUser(String userName, Multihash hash, SecretKey secretKey, PublicKey publicKey, FriendType friendType) {
         this.userName = userName;
@@ -19,4 +19,25 @@ class OtherUser {
         this.publicKey = publicKey;
         this.friendType = friendType;
     }
+
+    String getUserName() {
+        return userName;
+    }
+
+    Multihash getHash() {
+        return hash;
+    }
+
+    SecretKey getSecretKey() {
+        return secretKey;
+    }
+
+    PublicKey getPublicKey() {
+        return publicKey;
+    }
+
+    FriendType getFriendType() {
+        return friendType;
+    }
+
 }

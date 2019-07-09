@@ -36,32 +36,30 @@ import java.util.stream.Stream;
 //TODO find a way to do num mutual friends
 //TODO build in emoji support
 //TODO complete all the todo statements
-public class Pubsub implements Runnable {
-
-    private User yourself;
-    private Account account;
-    private Stream<Map<String, Object>> room;
-    private String roomName;
-    private IPFS ipfs;
+class Pubsub {
+    User yourself;
+    Account account;
+    Stream<Map<String, Object>> room;
+    String roomName;
+    IPFS ipfs;
 
     // username and hash
-    private HashMap<String, String> users;
-    private int numUsersFound;
-    private ArrayList<OtherUser> usersInRoom;
+    HashMap<String, String> users;
+    ArrayList<OtherUser> usersInRoom;
 
     // messages
-    private boolean saveMessage;
-    private ArrayList<Message> messages;
-    private HashMap<Long, Message> messageLookup;
+    boolean saveMessage;
+    ArrayList<Message> messages;
+    HashMap<Long, Message> messageLookup;
 
     // encryption
-    private SecretKey aesKey;
-    private String iv;
-    private PrivateKey privateKey;
-    private PublicKey publicKey;
+    SecretKey aesKey;
+    String iv;
+    PrivateKey privateKey;
+    PublicKey publicKey;
 
-    private boolean ready;
-    private static final boolean DEBUG = true;
+    boolean ready;
+    static final boolean DEBUG = true;
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
@@ -89,10 +87,12 @@ public class Pubsub implements Runnable {
             privateKey = keypair.getPrivate();
             publicKey = keypair.getPublic();
 
+            ;
             ready = false;
         } catch (Exception e) {
             e.printStackTrace();
         }
+        doesEverything();
     }
 
     /**
@@ -114,230 +114,231 @@ public class Pubsub implements Runnable {
      * Threaded method that reads the messages out after they have been sent, unHashes them, decrypts them, and in the case of internal messages applies their message.
      * The handshake function was built into this one
      */
-    @Override
-    public void run() {
+    void doesEverything() {
+        new Thread(() -> {
+            try {
+                loadMessages();
+                printLastMessages(20);
 
-        try {
-            loadMessages();
-            printLastMessages(20);
-
-            // initiate handshake
-            new Thread(() -> {
-                String lastPeers = "";
-                while (true) {
-                    if (DEBUG)
-                        try {
-                            String currentPeers = ipfs.pubsub.peers(roomName).toString();
-                            if (!currentPeers.equals(lastPeers)) {
-                                lastPeers = currentPeers;
-                                debug("peers: " + currentPeers);
-                            }
-                        } catch (IOException ignore) {
-                        }
-                    if (!ready)
-                        try {
-                            debug("attempting to start a handshake");
-                            ipfs.pubsub.pub(roomName, createOutgoingRsaText());
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException ignore) {
-                    }
-                }
-            }).start();
-
-            // write out each line of the stream to a file and check if they are one of the users
-            room.forEach(stringObjectMap -> {
-                if (stringObjectMap.isEmpty()) return;
-                try {
-
-                    String base64Data = stringObjectMap.values().toString().split(",")[1].trim();
-                    byte[] decodedBytes = MyBase64.decode(base64Data);
-                    String decodedString = new String(decodedBytes).replaceAll(" ", "+");
-
-                    //TODO: is there a better way to differentiate the sender?
-                    String sender = stringObjectMap.toString().split(",", 2)[0].substring(6);
-
-                    Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
-                    if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
-                        shakeHands(sender, decodedString);
-                        return;
-                    }
-
-                    String decryptedMessage;
-                    try {
-                        decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
-                    } catch (Exception e) {
-                        shakeHands(sender, decodedString);
-                        return;
-                    }
-
-                    if (!isJson(decryptedMessage)) return;
-                    Message message = parseMessage(decryptedMessage);
-                    if (account.getPeer(message.getAuthorId()).getDiscriminator().equals("000000"))
-                        writeToPubsub(String.valueOf(message.getAuthorId()), MessageType.IDENTITY_REQUEST);
-
-                    //TODO: better message save stuff
-                    //TODO: decide if the message should be stored in messages
-                    // process the message according to its type
-                    switch (message.getMessageType()) {
-                        case PUBLIC: {
-                            messages.add(message);
-                            messageLookup.put(message.getMessageId(), message);
-                            saveMessages();
-
-                            System.out.println(message.getMessageId() + "  " +
-                                    getTime(message.getTimestampLong()) + "  " +
-                                    account.getPeer(message.getAuthorId()).getUsername() + "  " +
-                                    message.getContent());
-
-                            if (message.getAuthorId() == account.getUserId()) {
-                                if (message.getContent().startsWith("--edit")) {
-                                    String[] split = message.getContent().split(" ", 3);
-                                    if (split.length != 3) return;
-                                    try {
-                                        long msgId = Long.parseLong(split[1]);
-                                        Message msg = messageLookup.get(msgId);
-                                        if (msg == null || msg.getAuthorId() != message.getAuthorId()) return;
-                                        editMessage(msg.getMessageId(), split[2]);
-                                    } catch (NumberFormatException ignore) {
-                                    }
-                                } else if (message.getContent().equals("--shutdown")) {
-                                    sendMessage("[SYSTEM] shutting down in 5 seconds");
-                                    try {
-                                        Thread.sleep(5000);
-                                    } catch (InterruptedException ignore) {
-                                    }
-                                    System.exit(0);
-                                }
-                            }
-                            break;
-                        }
-
-                        case READ_RESPONSE: {
-                            Message msg = messageLookup.get(message.getMessageId());
-                            if (msg != null) msg.editSeen(true);
-                            break;
-                        }
-
-                        case EDIT_MESSAGE: {
-                            Message msg = messageLookup.get(message.getMessageId());
-                            if (msg == null) return;
-//                                String oldContent = msg.getContent();
-                            msg.editContent(message.getContent());
-//                                String response = "<type=edit messageId="+msg.getMessageId()+" oldContent=\""+oldContent+"\" newContent=\""+msg.getContent()+"\">";
-//                                sendMessage(response);
-                            break;
-                        }
-
-                        case IDENTITY_REQUEST: {
-                            if (Long.valueOf(message.getContent()) == account.getUserId()) {
-                                JSONObject payload = new JSONObject();
-                                payload.put("username", account.getUsername())
-                                        .put("discriminator", account.getDiscriminator());
-                                writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
-                            }
-                        }
-                        case FILE: {
-                            MerkleNode merkleNode = new MerkleNode(message.getContent());
+                // initiate handshake
+                new Thread(() -> {
+                    String lastPeers = "";
+                    while (true) {
+                        if (DEBUG)
                             try {
-                                if (merkleNode.name.isPresent())
-                                    try (FileOutputStream fos = new FileOutputStream(merkleNode.name.get())) {
-                                        fos.write(IPFSnonPubsub.getFile(merkleNode.hash));
-                                    }
-                                else {
-                                    int i = 0;
-                                    while (!new File("Download" + i++).exists())
-                                        System.out.print("");
-                                    try (FileOutputStream fos = new FileOutputStream("download" + i)) {
-                                        fos.write(IPFSnonPubsub.getFile(merkleNode.hash));
-                                    }
+                                String currentPeers = ipfs.pubsub.peers(roomName).toString();
+                                if (!currentPeers.equals(lastPeers)) {
+                                    lastPeers = currentPeers;
+                                    debug("peers: " + currentPeers);
                                 }
-                                IPFSnonPubsub.getFile(merkleNode.hash);
-                            } catch (IOException e) {
+                            } catch (IOException ignore) {
+                            }
+                        if (!ready)
+                            try {
+                                debug("attempting to start a handshake");
+                                ipfs.pubsub.pub(roomName, createOutgoingRsaText());
+                            } catch (Exception e) {
                                 e.printStackTrace();
                             }
-                        }
-
-                        case IDENTITY_RESPONSE: {
-                            Peer peer = account.getPeer(message.getAuthorId());
-                            if (isJson(message.getContent())) {
-                                JSONObject payload = new JSONObject(message.getContent());
-                                peer.updateUsername(payload.getString("username"));
-                                peer.updateDiscriminator(payload.getString("discriminator"));
-                                yourself.saveAccounts();
-                            }
-                            break;
-                        }
-
-                        case POST: {
-                            messages.add(message);
-                            messageLookup.put(message.getMessageId(), message);
-                            Post post = new Post(message);
-                            SocialMediaFeed.posts.put(post.getMessageId(), post);
-                            saveMessages();
-                            break;
-                        }
-
-                        case COMMENT: {
-                            messages.add(message);
-                            messageLookup.put(message.getMessageId(), message);
-                            Post postToAddCommentTo = SocialMediaFeed.posts.get(message.getMessageId());
-                            postToAddCommentTo.addComment(new Post(message));
-                        }
-
-                        case DELETE_COMMENT: {
-                            messages.add(message);
-                            messageLookup.put(message.getMessageId(), message);
-                            String[] splitContent = message.getContent().split("#");
-                            Post post = SocialMediaFeed.posts.get(Long.parseLong(splitContent[0]));
-                            post.deleteComment(Long.parseLong(splitContent[1]));
-                            break;
-                        }
-
-                        case EDIT_COMMENT: {
-                            messages.add(message);
-                            messageLookup.put(message.getMessageId(), message);
-                            Post newComment = new Post(message);
-                            Post post = SocialMediaFeed.posts.get(message.getMessageId());
-                            post.editComment(newComment.getPostContent(), newComment.getMessageId());
-                            break;
-                        }
-
-                        case EDIT_COMMENT_WITH_IMAGE: {
-                            messages.add(message);
-                            messageLookup.put(message.getMessageId(), message);
-                            Post newComment = new Post(message);
-                            Post post = SocialMediaFeed.posts.get(message.getMessageId());
-                            post.editComment(newComment.getPostContent(), newComment.getMessageId(), newComment.getHashOfImage());
-                            break;
-                        }
-
-                        case TYPING: {
-//                          TODO print in andoid that it is typing
-                            System.out.println(message.getAuthorId() + " is typing...");
-                            break;
-                        }
-
-                        case UNKNOWN: {
-                            //TODO: handle any unknown messages
-                            break;
+                        try {
+                            Thread.sleep(10000);
+                        } catch (InterruptedException ignore) {
                         }
                     }
+                }).start();
 
-                } catch (NullPointerException e) {
-                    e.printStackTrace();
-                }
-            });
+                // write out each line of the stream to a file and check if they are one of the users
+                room.forEach(stringObjectMap -> {
+                    if (stringObjectMap.isEmpty()) return;
+                    try {
 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+                        String base64Data = stringObjectMap.values().toString().split(",")[1].trim();
+                        byte[] decodedBytes = MyBase64.decode(base64Data);
+                        String decodedString = new String(decodedBytes).replaceAll(" ", "+");
+
+                        //TODO: is there a better way to differentiate the sender?
+                        String sender = stringObjectMap.toString().split(",", 2)[0].substring(6);
+
+                        Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
+                        if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
+                            shakeHands(sender, decodedString);
+                            return;
+                        }
+
+                        String decryptedMessage;
+                        try {
+                            decryptedMessage = Encryption.decrypt(decodedString, authorAesKey.getKey(), authorAesKey.getValue());
+                        } catch (Exception e) {
+                            shakeHands(sender, decodedString);
+                            return;
+                        }
+
+                        if (!isJson(decryptedMessage)) return;
+                        Message message = parseMessage(decryptedMessage);
+                        if (account.getPeer(message.getAuthorId()).getDiscriminator().equals("000000"))
+                            writeToPubsub(String.valueOf(message.getAuthorId()), MessageType.IDENTITY_REQUEST);
+
+                        //TODO: better message save stuff
+                        //TODO: decide if the message should be stored in messages
+                        // process the message according to its type
+                        switch (message.getMessageType()) {
+                            case PUBLIC: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                saveMessages();
+
+                                System.out.println(message.getMessageId() + "  " +
+                                        getTime(message.getTimestampLong()) + "  " +
+                                        account.getPeer(message.getAuthorId()).getUsername() + "  " +
+                                        message.getContent());
+                                break;
+                            }
+
+                            case READ_RESPONSE: {
+                                Message msg = messageLookup.get(message.getMessageId());
+                                if (msg != null) msg.editSeen(true);
+                                break;
+                            }
+
+                            case EDIT_MESSAGE: {
+                                Message msg = messageLookup.get(message.getMessageId());
+                                if (msg == null) return;
+//                                String oldContent = msg.getContent();
+                                if (msg.getAuthorId() == message.getAuthorId())
+                                    msg.editContent(message.getContent());
+                                else
+                                    main.logging.logWarning(msg.getAuthorId() + " tried to edit a message that was not theirs");
+//                                String response = "<type=edit messageId="+msg.getMessageId()+" oldContent=\""+oldContent+"\" newContent=\""+msg.getContent()+"\">";
+//                                sendMessage(response);
+                                break;
+                            }
+
+                            case IDENTITY_REQUEST: {
+                                if (Long.valueOf(message.getContent()) == account.getUserId()) {
+                                    JSONObject payload = new JSONObject();
+                                    payload.put("username", account.getUsername())
+                                            .put("discriminator", account.getDiscriminator());
+                                    writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
+                                }
+                            }
+                            case FILE: {
+                                MerkleNode merkleNode = new MerkleNode(message.getContent());
+                                try {
+                                    if (merkleNode.name.isPresent())
+                                        try (FileOutputStream fos = new FileOutputStream(merkleNode.name.get())) {
+                                            fos.write(IPFSnonPubsub.getFile(merkleNode.hash));
+                                        }
+                                    else {
+                                        int i = 0;
+                                        while (!new File("Download" + i++).exists())
+                                            System.out.print("");
+                                        try (FileOutputStream fos = new FileOutputStream("download" + i)) {
+                                            fos.write(IPFSnonPubsub.getFile(merkleNode.hash));
+                                        }
+                                    }
+                                    IPFSnonPubsub.getFile(merkleNode.hash);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+
+                            case IDENTITY_RESPONSE: {
+                                Peer peer = account.getPeer(message.getAuthorId());
+                                if (isJson(message.getContent())) {
+                                    JSONObject payload = new JSONObject(message.getContent());
+                                    peer.updateUsername(payload.getString("username"));
+                                    peer.updateDiscriminator(payload.getString("discriminator"));
+                                    yourself.saveAccounts();
+                                }
+                                break;
+                            }
+
+                            case POST: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                Post post = new Post(message);
+                                SocialMediaFeed.posts.put(post.getMessageId(), post);
+                                saveMessages();
+                                break;
+                            }
+
+                            case DELETE_POST: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                if (SocialMediaFeed.posts.get(Long.parseLong(message.getContent())).getAuthorId() == (message.getAuthorId()))
+                                    SocialMediaFeed.posts.remove(Long.parseLong(message.getContent()));
+                                else
+                                    main.logging.logWarning(message.getAuthorId() + " tried to delete a message that was not theirs.");
+                                break;
+                            }
+
+                            case COMMENT: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                Post postToAddCommentTo = SocialMediaFeed.posts.get(message.getMessageId());
+                                postToAddCommentTo.addComment(new Post(message));
+                            }
+
+                            case DELETE_COMMENT: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                String[] splitContent = message.getContent().split("#");
+                                Post post = SocialMediaFeed.posts.get(Long.parseLong(splitContent[0]));
+                                if (message.getAuthorId() == post.getAuthorId())
+                                    post.deleteComment(Long.parseLong(splitContent[1]));
+                                else
+                                    main.logging.logWarning(message.getAuthorId() + " tried to delete a comment that was not theirs");
+                                break;
+                            }
+
+                            case EDIT_COMMENT: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                Post newComment = new Post(message);
+                                Post post = SocialMediaFeed.posts.get(message.getMessageId());
+                                if (message.getAuthorId() == post.getAuthorId())
+                                    post.editComment(newComment.getPostContent(), newComment.getMessageId());
+                                else
+                                    main.logging.logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
+                                break;
+                            }
+
+                            case EDIT_COMMENT_WITH_IMAGE: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                Post newComment = new Post(message);
+                                Post post = SocialMediaFeed.posts.get(message.getMessageId());
+                                if (message.getAuthorId() == post.getAuthorId())
+                                    post.editComment(newComment.getPostContent(), newComment.getMessageId(), newComment.getHashOfImage());
+                                else
+                                    main.logging.logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
+                                break;
+                            }
+
+                            case TYPING: {
+//                          TODO print in andoid that it is typing
+                                System.out.println(message.getAuthorId() + " is typing...");
+                                break;
+                            }
+
+                            case UNKNOWN: {
+                                //TODO: handle any unknown messages
+                                break;
+                            }
+                        }
+
+                    } catch (NullPointerException e) {
+                        e.printStackTrace();
+                    }
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
-    private void shakeHands(String sender, String message) {
+    void shakeHands(String sender, String message) {
         if (!MyBase64.isBase64(message)) return;
 
         //TODO: verify that this is someone we actually want to perform a handshake with
@@ -404,7 +405,7 @@ public class Pubsub implements Runnable {
      * @param json JSON String containing the message info
      * @return {@link Message} object
      */
-    private Message parseMessage(String json) {
+    Message parseMessage(String json) {
         if (!isJson(json)) throw new IllegalArgumentException("invalid JSON formatting");
         return new Message(new JSONObject(json));
     }
@@ -416,7 +417,7 @@ public class Pubsub implements Runnable {
      * @param time The Epoch time that the message was sent at
      * @return The human readable time that the message was sent at
      */
-    private String getTime(String time) {
+    String getTime(String time) {
         return getTime(Long.parseLong(time));
     }
 
@@ -427,12 +428,12 @@ public class Pubsub implements Runnable {
      * @param time The Epoch time that the message was sent at
      * @return The human readable time that the message was sent at
      */
-    private String getTime(long time) {
+    String getTime(long time) {
         SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss");
         return sdf.format(new Date(time));
     }
 
-    private String createOutgoingRsaText() {
+    String createOutgoingRsaText() {
         return MyBase64.encode(publicKey.getEncoded());
     }
 
@@ -530,7 +531,7 @@ public class Pubsub implements Runnable {
             messageLookup.put(m.getMessageId(), m);
     }
 
-    private void saveMessages() {
+    void saveMessages() {
         if (saveMessage) {
             try {
                 FileLoader.saveMessages(messages, roomName);
@@ -553,7 +554,7 @@ public class Pubsub implements Runnable {
         System.out.println(sb.toString());
     }
 
-    private boolean isJson(String s) {
+    boolean isJson(String s) {
         try {
             new JSONObject(s);
         } catch (JSONException ex) {
@@ -566,13 +567,13 @@ public class Pubsub implements Runnable {
         return true;
     }
 
-    private void closeApp() {
+    void closeApp() {
         saveMessages();
         messages.clear();
         messageLookup.clear();
     }
 
-    private void debug(String message) {
+    void debug(String message) {
         if (DEBUG) System.out.println("[DEBUG] " + message);
     }
 }

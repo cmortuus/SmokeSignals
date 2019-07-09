@@ -4,11 +4,14 @@ import java.util.Scanner;
 
 public class main {
 
+    static Logging logging;
+
     public static void main(String[] args) {
 
-        User me = new User("Christian");
+        User me = new User("Caleb");
+        logging = new Logging(me);
 
-        String room = me.joinRoom("Caleb#646567");
+        String room = me.joinRoom("Christian#636174");
         while (!me.isRoomReady(room)) {
             try {
                 Thread.sleep(1000);

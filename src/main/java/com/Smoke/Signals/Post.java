@@ -19,7 +19,7 @@ class Post extends Message {
     }
 
     void addLike(OtherUser user) {
-        likes.add(user.userName);
+        likes.add(user.getUserName());
     }
 
     void addLike(String user) {
@@ -27,7 +27,7 @@ class Post extends Message {
     }
 
     void addView(OtherUser user) {
-        views.add(user.userName);
+        views.add(user.getUserName());
     }
 
     void addView(String user) {
