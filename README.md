@@ -1,6 +1,6 @@
 # Smoke Signals Java
 
-Website: https://smokesignals.dev/
+Website: [SmokeSignals](https://smokesignals.dev/)
 
 
 
