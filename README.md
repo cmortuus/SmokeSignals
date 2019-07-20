@@ -1,6 +1,6 @@
 # Smoke Signals Java
 
-Website: <a> SmokeSignals.dev </a>
+Website: [SmokeSignals](https://smokesignals.dev/)
 
 
 
