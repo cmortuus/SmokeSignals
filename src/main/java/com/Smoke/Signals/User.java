@@ -14,7 +14,7 @@ class User {
     private HashMap<String, Pubsub> rooms;
     private HashMap<String, Pair<SecretKey, String>> secretKeys;
     static private ArrayList<OtherUser> otherUsers;
-
+    static SocialMediaFeed socialMediaFeed;
     private ArrayList<Account> accounts;
     private Account yourAccount;
 
@@ -23,6 +23,9 @@ class User {
     //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
     User(String user) {
         try {
+//            TODO this hardcodes the is public as false
+            socialMediaFeed = new SocialMediaFeed(this, false);
+
             rooms = new HashMap<>();
             secretKeys = new HashMap<>();
             otherUsers = new ArrayList<>();

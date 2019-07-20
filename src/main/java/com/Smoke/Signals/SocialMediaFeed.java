@@ -2,18 +2,24 @@ package com.Smoke.Signals;
 
 import io.ipfs.multihash.Multihash;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 class SocialMediaFeed extends Pubsub {
 
     static HashMap<Long, Post> posts;
     private User yourself;
+    private boolean isPublic;
+    static HashMap<String, Long> publicPages;
+    private ArrayList<Pubsub> publicFollows;
 
-
-    SocialMediaFeed(User yourself) {
+    SocialMediaFeed(User yourself, boolean isPublic) {
         super(yourself, IPFSnonPubsub.ipfsID, true);
         posts = new HashMap<>();
         this.yourself = yourself;
+        this.isPublic = isPublic;
+        publicPages = new HashMap<>();
+        publicFollows = new ArrayList<>();
     }
 
     /**
@@ -23,8 +29,12 @@ class SocialMediaFeed extends Pubsub {
      * @param post The pure text of what needs to be uploaded
      */
     private void postMessage(String post) {
-        for (OtherUser user : yourself.getOtherUsers()) {
-            writeToPubsub(user.getHash().toString(), post, MessageType.POST);
+        if (!isPublic) {
+            for (OtherUser user : yourself.getOtherUsers()) {
+                writeToPubsub(user.getHash().toString(), post, MessageType.POST);
+            }
+        } else {
+            writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post, MessageType.POST);
         }
     }
 
@@ -36,9 +46,14 @@ class SocialMediaFeed extends Pubsub {
      * @param hashOfImage The multiHash in string form of the image that is posted.
      */
     private void postMessage(String post, Multihash hashOfImage) {
-        for (OtherUser user : yourself.getOtherUsers()) {
-            writeToPubsub(user.getHash().toString(), post + "#" + hashOfImage.toString(), MessageType.POST);
+        if (!isPublic) {
+            for (OtherUser user : yourself.getOtherUsers()) {
+                writeToPubsub(user.getHash().toString(), post + "#" + hashOfImage.toString(), MessageType.POST);
+            }
+        } else {
+            writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post + "#" + hashOfImage.toString(), MessageType.POST);
         }
+
     }
 
     /**
@@ -78,13 +93,34 @@ class SocialMediaFeed extends Pubsub {
                 commentID + "#" + image + "#" + newContent, MessageType.EDIT_COMMENT_WITH_IMAGE);
     }
 
+    /**
+     * Deletes a post already made
+     *
+     * @param postID the unique id of the post
+     */
     private void deletePost(Long postID) {
         writeToPubsub(String.valueOf(postID), MessageType.DELETE_POST);
 
     }
 
+    /**
+     * Deletes a comment already made on a post
+     *
+     * @param postID    unique id of a post
+     * @param commentID unique id of the comment on the post
+     */
     private void deleteComment(Long postID, Long commentID) {
         writeToPubsub(postID + "#" + commentID, MessageType.DELETE_COMMENT);
+    }
+
+    private void followPublic(String name) {
+        for (OtherUser user : yourself.getOtherUsers()) {
+            writeToPubsub(user.getHash().toString(), name, MessageType.GET_PUBLIC_PAGE_NAME);
+        }
+    }
+
+    void followPublic(long publicID) {
+        publicFollows.add(new Pubsub(yourself, String.valueOf(publicID), true));
     }
 
     /**

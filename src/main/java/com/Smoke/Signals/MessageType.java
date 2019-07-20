@@ -18,6 +18,8 @@ public enum MessageType {
     DELETE_POST(15),
     EDIT_COMMENT_WITH_IMAGE(17),
     ERROR(18),
+    GET_PUBLIC_PAGE_NAME(19),
+    RETURN_PUBLIC_PAGE_NAME(20),
     UNKNOWN(-1);
 
     private final int id;

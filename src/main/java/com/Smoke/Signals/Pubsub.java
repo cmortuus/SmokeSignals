@@ -221,6 +221,7 @@ class Pubsub {
                                     writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
                                 }
                             }
+
                             case FILE: {
                                 MerkleNode merkleNode = new MerkleNode(message.getContent());
                                 try {
@@ -313,6 +314,22 @@ class Pubsub {
                                 else
                                     main.logging.logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
                                 break;
+                            }
+
+                            case GET_PUBLIC_PAGE_NAME: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                for (String key : SocialMediaFeed.publicPages.keySet()) {
+                                    if (key.equals(message.getContent())) {
+                                        writeToPubsub(String.valueOf(message.getAuthorId()), String.valueOf(SocialMediaFeed.publicPages.get(key)), MessageType.RETURN_PUBLIC_PAGE_NAME);
+                                    }
+                                }
+                            }
+
+                            case RETURN_PUBLIC_PAGE_NAME: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                User.socialMediaFeed.followPublic(Long.parseLong(message.getContent()));
                             }
 
                             case TYPING: {

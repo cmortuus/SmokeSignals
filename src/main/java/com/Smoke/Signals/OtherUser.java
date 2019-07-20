@@ -28,14 +28,6 @@ class OtherUser {
         return hash;
     }
 
-    SecretKey getSecretKey() {
-        return secretKey;
-    }
-
-    PublicKey getPublicKey() {
-        return publicKey;
-    }
-
     FriendType getFriendType() {
         return friendType;
     }
