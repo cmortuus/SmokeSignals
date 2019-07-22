@@ -35,31 +35,32 @@ import java.util.stream.Stream;
 //TODO work on social media part of it
 //TODO find a way to do num mutual friends
 //TODO build in emoji support
+//TODO when getting ipfs get it by going to some normal site for china and then edit the html to add in the IPFS library and use that to pull down the code
 //TODO complete all the todo statements
 class Pubsub {
-    User yourself;
-    Account account;
-    Stream<Map<String, Object>> room;
-    String roomName;
-    IPFS ipfs;
+    private User yourself;
+    private Account account;
+    private Stream<Map<String, Object>> room;
+    private String roomName;
+    private IPFS ipfs;
 
     // username and hash
-    HashMap<String, String> users;
-    ArrayList<OtherUser> usersInRoom;
+    private HashMap<String, String> users;
+    private ArrayList<OtherUser> usersInRoom;
 
     // messages
-    boolean saveMessage;
-    ArrayList<Message> messages;
-    HashMap<Long, Message> messageLookup;
+    private boolean saveMessage;
+    private ArrayList<Message> messages;
+    private HashMap<Long, Message> messageLookup;
 
     // encryption
-    SecretKey aesKey;
-    String iv;
-    PrivateKey privateKey;
-    PublicKey publicKey;
+    private SecretKey aesKey;
+    private String iv;
+    private PrivateKey privateKey;
+    private PublicKey publicKey;
 
     boolean ready;
-    static final boolean DEBUG = true;
+    private static final boolean DEBUG = true;
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
@@ -114,7 +115,7 @@ class Pubsub {
      * Threaded method that reads the messages out after they have been sent, unHashes them, decrypts them, and in the case of internal messages applies their message.
      * The handshake function was built into this one
      */
-    void doesEverything() {
+    private void doesEverything() {
         new Thread(() -> {
             try {
                 loadMessages();
@@ -186,11 +187,11 @@ class Pubsub {
                                 messages.add(message);
                                 messageLookup.put(message.getMessageId(), message);
                                 saveMessages();
-
                                 System.out.println(message.getMessageId() + "  " +
                                         getTime(message.getTimestampLong()) + "  " +
                                         account.getPeer(message.getAuthorId()).getUsername() + "  " +
                                         message.getContent());
+                                writeToPubsub(String.valueOf(message.getMessageId()), MessageType.RECIEVED);
                                 break;
                             }
 
@@ -223,6 +224,8 @@ class Pubsub {
                             }
 
                             case FILE: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
                                 MerkleNode merkleNode = new MerkleNode(message.getContent());
                                 try {
                                     if (merkleNode.name.isPresent())
@@ -252,6 +255,14 @@ class Pubsub {
                                     yourself.saveAccounts();
                                 }
                                 break;
+                            }
+
+                            case RECIEVED: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                for (Message singleMessage : messages)
+                                    if (singleMessage.getMessageId() == Long.parseLong(message.getContent()))
+                                        singleMessage.setRecievedTrue(message.getAuthorId());
                             }
 
                             case POST: {
@@ -316,30 +327,13 @@ class Pubsub {
                                 break;
                             }
 
-                            case GET_PUBLIC_PAGE_NAME: {
-                                messages.add(message);
-                                messageLookup.put(message.getMessageId(), message);
-                                for (String key : SocialMediaFeed.publicPages.keySet()) {
-                                    if (key.equals(message.getContent())) {
-                                        writeToPubsub(String.valueOf(message.getAuthorId()), String.valueOf(SocialMediaFeed.publicPages.get(key)), MessageType.RETURN_PUBLIC_PAGE_NAME);
-                                    }
-                                }
-                            }
-
-                            case RETURN_PUBLIC_PAGE_NAME: {
-                                messages.add(message);
-                                messageLookup.put(message.getMessageId(), message);
-                                User.socialMediaFeed.followPublic(Long.parseLong(message.getContent()));
-                            }
 
                             case TYPING: {
-//                          TODO print in andoid that it is typing
                                 System.out.println(message.getAuthorId() + " is typing...");
                                 break;
                             }
 
                             case UNKNOWN: {
-                                //TODO: handle any unknown messages
                                 break;
                             }
                         }
@@ -355,7 +349,7 @@ class Pubsub {
         }).start();
     }
 
-    void shakeHands(String sender, String message) {
+    private void shakeHands(String sender, String message) {
         if (!MyBase64.isBase64(message)) return;
 
         //TODO: verify that this is someone we actually want to perform a handshake with
@@ -422,7 +416,7 @@ class Pubsub {
      * @param json JSON String containing the message info
      * @return {@link Message} object
      */
-    Message parseMessage(String json) {
+    private Message parseMessage(String json) {
         if (!isJson(json)) throw new IllegalArgumentException("invalid JSON formatting");
         return new Message(new JSONObject(json));
     }
@@ -434,7 +428,7 @@ class Pubsub {
      * @param time The Epoch time that the message was sent at
      * @return The human readable time that the message was sent at
      */
-    String getTime(String time) {
+    private String getTime(String time) {
         return getTime(Long.parseLong(time));
     }
 
@@ -445,12 +439,12 @@ class Pubsub {
      * @param time The Epoch time that the message was sent at
      * @return The human readable time that the message was sent at
      */
-    String getTime(long time) {
+    private String getTime(long time) {
         SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss");
         return sdf.format(new Date(time));
     }
 
-    String createOutgoingRsaText() {
+    private String createOutgoingRsaText() {
         return MyBase64.encode(publicKey.getEncoded());
     }
 
@@ -485,10 +479,13 @@ class Pubsub {
         return new Pair<>(key, split[1]);
     }
 
-    void sendFile(String filename) {
-        writeToPubsub(IPFSnonPubsub.addFile(filename).hash.toString() + IPFSnonPubsub.fileKey, MessageType.FILE);
+    private void sendFile(String filename) {
+        try{
+            writeToPubsub(IPFSnonPubsub.addFile(filename).hash.toString() + IPFSnonPubsub.fileKey, MessageType.FILE);
+        }catch (NullPointerException e){
+            e.printStackTrace();
+        }
     }
-
 
     /**
      * Send a message into the room. [this method is for internal use]
@@ -548,7 +545,7 @@ class Pubsub {
             messageLookup.put(m.getMessageId(), m);
     }
 
-    void saveMessages() {
+    private void saveMessages() {
         if (saveMessage) {
             try {
                 FileLoader.saveMessages(messages, roomName);
@@ -571,7 +568,7 @@ class Pubsub {
         System.out.println(sb.toString());
     }
 
-    boolean isJson(String s) {
+    private boolean isJson(String s) {
         try {
             new JSONObject(s);
         } catch (JSONException ex) {
@@ -584,13 +581,13 @@ class Pubsub {
         return true;
     }
 
-    void closeApp() {
+    private void closeApp() {
         saveMessages();
         messages.clear();
         messageLookup.clear();
     }
 
-    void debug(String message) {
+    private void debug(String message) {
         if (DEBUG) System.out.println("[DEBUG] " + message);
     }
 }

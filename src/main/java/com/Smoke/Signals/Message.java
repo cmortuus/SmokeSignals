@@ -3,6 +3,7 @@ package com.Smoke.Signals;
 import org.json.JSONObject;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Objects;
 
 /**
@@ -16,6 +17,7 @@ class Message implements Comparable<Message> {
     private boolean seen;
     private long authorId;
     private String content;
+    private ArrayList<Long> recieved;
 
     /**
      * Creates a new message object from the provided input.
@@ -34,6 +36,7 @@ class Message implements Comparable<Message> {
         this.content = content;
         this.type = type;
         this.seen = seen;
+        recieved = new ArrayList<>();
     }
 
     /**
@@ -96,6 +99,10 @@ class Message implements Comparable<Message> {
                 .put("seen", seen)
                 .put("authorId", authorId)
                 .put("content", content);
+    }
+
+    void setRecievedTrue(Long userID){
+        recieved.add(userID);
     }
 
     @Override

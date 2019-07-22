@@ -1,6 +1,6 @@
 package com.Smoke.Signals;
 
-public enum FriendType {
+enum FriendType {
     CANCHAT(0),
     CANSEEYOURPOSTS(1),
     CANSEETHEIRPOSTS(2),

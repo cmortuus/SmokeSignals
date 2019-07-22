@@ -53,7 +53,6 @@ class SocialMediaFeed extends Pubsub {
         } else {
             writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post + "#" + hashOfImage.toString(), MessageType.POST);
         }
-
     }
 
     /**

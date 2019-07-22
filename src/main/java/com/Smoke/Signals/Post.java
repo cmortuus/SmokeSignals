@@ -5,8 +5,7 @@ import java.util.HashMap;
 
 class Post extends Message {
     private HashMap<Long, Post> comments;
-    private ArrayList<String> likes;
-    private ArrayList<String> views;
+    private ArrayList<Long> likes;
     private String postContent;
     private String hashOfImage;
 
@@ -14,24 +13,8 @@ class Post extends Message {
         return likes.size();
     }
 
-    int getNumViews() {
-        return views.size();
-    }
-
-    void addLike(OtherUser user) {
-        likes.add(user.getUserName());
-    }
-
-    void addLike(String user) {
-        likes.add(user);
-    }
-
-    void addView(OtherUser user) {
-        views.add(user.getUserName());
-    }
-
-    void addView(String user) {
-        views.add(user);
+    void addLike(long userID) {
+        likes.add(userID);
     }
 
     HashMap<Long, Post> getComments() {
@@ -73,7 +56,6 @@ class Post extends Message {
         super(message.toJSONObject());
         this.comments = new HashMap<>();
         this.likes = new ArrayList<>();
-        this.views = new ArrayList<>();
 
         if (message.getMessageType() == MessageType.COMMENT) {
             String[] splitMessage = message.getContent().split("#", 4);
