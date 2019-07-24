@@ -38,6 +38,7 @@ import java.util.stream.Stream;
 //TODO when getting ipfs get it by going to some normal site for china and then edit the html to add in the IPFS library and use that to pull down the code
 //TODO complete all the todo statements
 class Pubsub {
+
     private User yourself;
     private Account account;
     private Stream<Map<String, Object>> room;
@@ -60,7 +61,7 @@ class Pubsub {
     private PublicKey publicKey;
 
     boolean ready;
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         System.out.println("RoomName = " + roomName);
@@ -88,7 +89,6 @@ class Pubsub {
             privateKey = keypair.getPrivate();
             publicKey = keypair.getPublic();
 
-            ;
             ready = false;
         } catch (Exception e) {
             e.printStackTrace();
@@ -181,6 +181,7 @@ class Pubsub {
 
                         //TODO: better message save stuff
                         //TODO: decide if the message should be stored in messages
+
                         // process the message according to its type
                         switch (message.getMessageType()) {
                             case PUBLIC: {
@@ -191,7 +192,7 @@ class Pubsub {
                                         getTime(message.getTimestampLong()) + "  " +
                                         account.getPeer(message.getAuthorId()).getUsername() + "  " +
                                         message.getContent());
-                                writeToPubsub(String.valueOf(message.getMessageId()), MessageType.RECIEVED);
+                                writeToPubsub(String.valueOf(message.getMessageId()), MessageType.RECEIVED);
                                 break;
                             }
 
@@ -208,7 +209,7 @@ class Pubsub {
                                 if (msg.getAuthorId() == message.getAuthorId())
                                     msg.editContent(message.getContent());
                                 else
-                                    main.logging.logWarning(msg.getAuthorId() + " tried to edit a message that was not theirs");
+                                    yourself.getLogger().logWarning(msg.getAuthorId() + " tried to edit a message that was not theirs");
 //                                String response = "<type=edit messageId="+msg.getMessageId()+" oldContent=\""+oldContent+"\" newContent=\""+msg.getContent()+"\">";
 //                                sendMessage(response);
                                 break;
@@ -221,6 +222,7 @@ class Pubsub {
                                             .put("discriminator", account.getDiscriminator());
                                     writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
                                 }
+                                break;
                             }
 
                             case FILE: {
@@ -244,6 +246,7 @@ class Pubsub {
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
+                                break;
                             }
 
                             case IDENTITY_RESPONSE: {
@@ -252,17 +255,17 @@ class Pubsub {
                                     JSONObject payload = new JSONObject(message.getContent());
                                     peer.updateUsername(payload.getString("username"));
                                     peer.updateDiscriminator(payload.getString("discriminator"));
-                                    yourself.saveAccounts();
+                                    yourself.saveAccount();
                                 }
                                 break;
                             }
 
-                            case RECIEVED: {
-                                messages.add(message);
-                                messageLookup.put(message.getMessageId(), message);
-                                for (Message singleMessage : messages)
-                                    if (singleMessage.getMessageId() == Long.parseLong(message.getContent()))
-                                        singleMessage.setRecievedTrue(message.getAuthorId());
+                            case RECEIVED: {
+                                if (messageLookup.containsKey(Long.valueOf(message.getContent())))
+                                    if (messageLookup.get(Long.valueOf(message.getContent())).getAuthorId() == yourself.getAccount().getUserId())
+                                        messageLookup.get(Long.valueOf(message.getContent())).setReceivedTrue(message.getAuthorId());
+                                saveMessages();
+                                break;
                             }
 
                             case POST: {
@@ -280,7 +283,7 @@ class Pubsub {
                                 if (SocialMediaFeed.posts.get(Long.parseLong(message.getContent())).getAuthorId() == (message.getAuthorId()))
                                     SocialMediaFeed.posts.remove(Long.parseLong(message.getContent()));
                                 else
-                                    main.logging.logWarning(message.getAuthorId() + " tried to delete a message that was not theirs.");
+                                    yourself.getLogger().logWarning(message.getAuthorId() + " tried to delete a message that was not theirs.");
                                 break;
                             }
 
@@ -289,6 +292,7 @@ class Pubsub {
                                 messageLookup.put(message.getMessageId(), message);
                                 Post postToAddCommentTo = SocialMediaFeed.posts.get(message.getMessageId());
                                 postToAddCommentTo.addComment(new Post(message));
+                                break;
                             }
 
                             case DELETE_COMMENT: {
@@ -299,7 +303,7 @@ class Pubsub {
                                 if (message.getAuthorId() == post.getAuthorId())
                                     post.deleteComment(Long.parseLong(splitContent[1]));
                                 else
-                                    main.logging.logWarning(message.getAuthorId() + " tried to delete a comment that was not theirs");
+                                    yourself.getLogger().logWarning(message.getAuthorId() + " tried to delete a comment that was not theirs");
                                 break;
                             }
 
@@ -311,7 +315,7 @@ class Pubsub {
                                 if (message.getAuthorId() == post.getAuthorId())
                                     post.editComment(newComment.getPostContent(), newComment.getMessageId());
                                 else
-                                    main.logging.logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
+                                    yourself.getLogger().logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
                                 break;
                             }
 
@@ -323,16 +327,14 @@ class Pubsub {
                                 if (message.getAuthorId() == post.getAuthorId())
                                     post.editComment(newComment.getPostContent(), newComment.getMessageId(), newComment.getHashOfImage());
                                 else
-                                    main.logging.logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
+                                    yourself.getLogger().logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
                                 break;
                             }
-
 
                             case TYPING: {
                                 System.out.println(message.getAuthorId() + " is typing...");
                                 break;
                             }
-
                             case UNKNOWN: {
                                 break;
                             }
@@ -382,7 +384,7 @@ class Pubsub {
                 if (pair.getKey() == null) throw new Exception();
                 yourself.addSecretKey(sender, pair);
                 ipfs.pubsub.pub(roomName, Encryption.encrypt(MyBase64.encode(aesKey.getEncoded()) + "|" + iv, pair.getKey(), pair.getValue()));
-                if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
+                //if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
                     ready = true;
                 debug("completed handshake stage 2");
                 writeToPubsub("", MessageType.UNKNOWN);
@@ -404,8 +406,7 @@ class Pubsub {
                     ready = true;
                     debug("completed handshake stage 3");
                     writeToPubsub("", MessageType.UNKNOWN);
-                } catch (Exception ignore3) {
-                }
+                } catch (Exception ignore3) {}
             }
         }
     }
