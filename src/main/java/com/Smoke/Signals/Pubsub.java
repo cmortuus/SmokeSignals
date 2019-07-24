@@ -384,7 +384,7 @@ class Pubsub {
                 if (pair.getKey() == null) throw new Exception();
                 yourself.addSecretKey(sender, pair);
                 ipfs.pubsub.pub(roomName, Encryption.encrypt(MyBase64.encode(aesKey.getEncoded()) + "|" + iv, pair.getKey(), pair.getValue()));
-                //if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
+                if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
                     ready = true;
                 debug("completed handshake stage 2");
                 writeToPubsub("", MessageType.UNKNOWN);
