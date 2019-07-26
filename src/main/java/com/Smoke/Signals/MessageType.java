@@ -20,7 +20,7 @@ public enum MessageType {
     ERROR(18),
     GET_PUBLIC_PAGE_NAME(19),
     RETURN_PUBLIC_PAGE_NAME(20),
-    RECIEVED(21),
+    RECEIVED(21),
     UNKNOWN(-1);
 
     private final int id;

@@ -5,6 +5,8 @@ import java.util.logging.Logger;
 
 class Logging extends Pubsub {
 
+    //TODO: if 'ready' is false, queue up logs; when 'ready' becomes true, fire the logs into the logging room
+
     Logging(User yourself) {
         super(yourself, "Error_Reporting", false);
     }

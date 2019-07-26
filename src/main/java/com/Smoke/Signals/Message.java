@@ -1,5 +1,6 @@
 package com.Smoke.Signals;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.sql.Timestamp;
@@ -17,7 +18,7 @@ class Message implements Comparable<Message> {
     private boolean seen;
     private long authorId;
     private String content;
-    private ArrayList<Long> recieved;
+    private ArrayList<Long> received;
 
     /**
      * Creates a new message object from the provided input.
@@ -36,7 +37,7 @@ class Message implements Comparable<Message> {
         this.content = content;
         this.type = type;
         this.seen = seen;
-        recieved = new ArrayList<>();
+        received = new ArrayList<>();
     }
 
     /**
@@ -45,7 +46,7 @@ class Message implements Comparable<Message> {
      * @param json JSON text formatted as a message object
      */
     Message(JSONObject json) {
-        if (!json.has("messageId") || !json.has("timestamp") || !json.has("type") || !json.has("seen") || !json.has("authorId") || !json.has("content"))
+        if (!json.has("messageId") || !json.has("timestamp") || !json.has("type") || !json.has("seen") || !json.has("authorId") || !json.has("content") || !json.has("received"))
             throw new IllegalArgumentException("missing fields");
         this.messageId = json.getLong("messageId");
         this.timestamp = json.getLong("timestamp");
@@ -53,6 +54,9 @@ class Message implements Comparable<Message> {
         this.seen = json.getBoolean("seen");
         this.authorId = json.getLong("authorId");
         this.content = json.getString("content");
+
+        received = new ArrayList<>();
+        json.getJSONArray("received").toList().forEach(o -> received.add((long) o));
     }
 
     long getMessageId() {
@@ -98,11 +102,12 @@ class Message implements Comparable<Message> {
                 .put("type", type)
                 .put("seen", seen)
                 .put("authorId", authorId)
-                .put("content", content);
+                .put("content", content)
+                .put("received", new JSONArray(received));
     }
 
-    void setRecievedTrue(Long userID){
-        recieved.add(userID);
+    void setReceivedTrue(Long userID){
+        received.add(userID);
     }
 
     @Override
@@ -113,7 +118,8 @@ class Message implements Comparable<Message> {
                 .put("type", type)
                 .put("seen", seen)
                 .put("authorId", authorId)
-                .put("content", content);
+                .put("content", content)
+                .put("received", new JSONArray(received));
         return _message.toString();
     }
 

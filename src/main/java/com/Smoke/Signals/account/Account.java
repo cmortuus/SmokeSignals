@@ -6,20 +6,29 @@ import org.json.JSONObject;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class Account {
 
     private final long userid;
     private String username;
     private String discriminator;
-    private ArrayList<String> roomnames;
+    private HashSet<String> roomnames;
     private HashMap<Long, Peer> peers;
 
     public Account(String username) {
         this.username = username;
-        regenerateDiscriminator();
+        discriminator = generateDiscriminator();
         userid = getFullUsername().hashCode() + System.currentTimeMillis();
-        roomnames = new ArrayList<>();
+        roomnames = new HashSet<>();
+        peers = new HashMap<>();
+    }
+
+    public Account(String username, String discriminator) {
+        this.username = username;
+        this.discriminator = discriminator;
+        userid = getFullUsername().hashCode() + System.currentTimeMillis();
+        roomnames = new HashSet<>();
         peers = new HashMap<>();
     }
 
@@ -29,7 +38,7 @@ public class Account {
         userid = json.getLong("userid");
         username = json.getString("username");
         discriminator = json.getString("discriminator");
-        roomnames = new ArrayList<>();
+        roomnames = new HashSet<>();
         json.getJSONArray("roomnames").iterator().forEachRemaining(o -> roomnames.add(String.valueOf(o.toString())));
         peers = new HashMap<>();
         json.getJSONArray("peers").iterator().forEachRemaining(o -> {
@@ -64,17 +73,29 @@ public class Account {
         return peers.get(userid);
     }
 
-    public void updateUsername(String username) {
+    /**
+     * Changes the username of the account and generates a new discriminator.
+     *
+     * @param username  the new username to use
+     * @return          the old username#discriminator
+     */
+    public String updateUsername(String username) {
+        String result = getFullUsername();
         this.username = username;
-        regenerateDiscriminator();
+        discriminator = generateDiscriminator();
+        return result;
     }
 
     public void addRoom(String roomname) {
-        if (!roomnames.contains(roomname)) roomnames.add(roomname);
+        roomnames.add(roomname);
     }
 
     public void addPeer(Peer peer) {
         peers.put(peer.getUserId(), peer);
+    }
+
+    public String getSaveFilename() {
+        return userid+".json";
     }
 
     public JSONObject toJSONObject() {
@@ -92,10 +113,10 @@ public class Account {
         return username+'#'+discriminator+" ("+userid+")";
     }
 
-    private void regenerateDiscriminator() {
+    public static String generateDiscriminator() {
         int min = 100000;
         int max = 1000000;
-        discriminator = String.valueOf(new SecureRandom().nextInt((max - min) + 1) + min);
+        return String.valueOf(new SecureRandom().nextInt((max - min) + 1) + min);
     }
 
 }
