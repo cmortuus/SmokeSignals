@@ -87,8 +87,6 @@ class Pubsub {
             KeyPair keypair = Encryption.generateKeys();
             privateKey = keypair.getPrivate();
             publicKey = keypair.getPublic();
-
-            ;
             ready = false;
         } catch (Exception e) {
             e.printStackTrace();
@@ -221,6 +219,7 @@ class Pubsub {
                                             .put("discriminator", account.getDiscriminator());
                                     writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
                                 }
+                                break;
                             }
 
                             case FILE: {
@@ -243,7 +242,9 @@ class Pubsub {
                                     IPFSnonPubsub.getFile(merkleNode.hash);
                                 } catch (IOException e) {
                                     e.printStackTrace();
+                                    break;
                                 }
+                                break;
                             }
 
                             case IDENTITY_RESPONSE: {
@@ -289,6 +290,7 @@ class Pubsub {
                                 messageLookup.put(message.getMessageId(), message);
                                 Post postToAddCommentTo = SocialMediaFeed.posts.get(message.getMessageId());
                                 postToAddCommentTo.addComment(new Post(message));
+                                break;
                             }
 
                             case DELETE_COMMENT: {

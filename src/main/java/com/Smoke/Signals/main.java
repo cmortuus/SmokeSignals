@@ -8,10 +8,10 @@ public class main {
 
     public static void main(String[] args) {
 
-        User me = new User("Caleb");
-        logging = new Logging(me);
+        User me = new User("Christian");
+//        logging = new Logging(me);
 
-        String room = me.joinRoom("Christian#636174");
+        String room = me.joinRoom("Caleb#214628");
         while (!me.isRoomReady(room)) {
             try {
                 Thread.sleep(1000);

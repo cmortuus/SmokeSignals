@@ -20,6 +20,7 @@ class SocialMediaFeed extends Pubsub {
         this.isPublic = isPublic;
         publicPages = new HashMap<>();
         publicFollows = new ArrayList<>();
+        ready =  true;
     }
 
     /**

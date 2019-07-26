@@ -7,7 +7,6 @@ class Logging extends Pubsub {
 
     Logging(User yourself) {
         super(yourself, "Error_Reporting", false);
-        ready = true;
     }
 
     private static final Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);

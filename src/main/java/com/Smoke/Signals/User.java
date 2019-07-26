@@ -14,7 +14,7 @@ class User {
     private HashMap<String, Pubsub> rooms;
     private HashMap<String, Pair<SecretKey, String>> secretKeys;
     static private ArrayList<OtherUser> otherUsers;
-    static SocialMediaFeed socialMediaFeed;
+//    static SocialMediaFeed socialMediaFeed;
     private ArrayList<Account> accounts;
     private Account yourAccount;
 
@@ -24,7 +24,7 @@ class User {
     User(String user) {
         try {
 //            TODO this hardcodes the is public as false
-            socialMediaFeed = new SocialMediaFeed(this, false);
+//            socialMediaFeed = new SocialMediaFeed(this, false);
 
             rooms = new HashMap<>();
             secretKeys = new HashMap<>();
