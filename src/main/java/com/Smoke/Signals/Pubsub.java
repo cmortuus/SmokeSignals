@@ -47,7 +47,7 @@ class Pubsub {
 
     // username and hash
     private HashMap<String, String> users;
-    private ArrayList<OtherUser> usersInRoom;
+    private ArrayList<Peer> connectedPeers;
 
     // messages
     private boolean saveMessage;
@@ -64,7 +64,7 @@ class Pubsub {
     private static final boolean DEBUG = false;
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
-        System.out.println("RoomName = " + roomName);
+        //System.out.println("RoomName = " + roomName);
         try {
             this.yourself = yourself;
             account = yourself.getAccount();
@@ -72,7 +72,7 @@ class Pubsub {
             this.roomName = roomName;
             ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
             room = ipfs.pubsub.sub(roomName);
-            usersInRoom = new ArrayList<>();
+            connectedPeers = new ArrayList<>();
 
             // messages
             this.saveMessage = saveMessage;
@@ -153,12 +153,9 @@ class Pubsub {
                     if (stringObjectMap.isEmpty()) return;
                     try {
 
-                        String base64Data = stringObjectMap.values().toString().split(",")[1].trim();
-                        byte[] decodedBytes = MyBase64.decode(base64Data);
+                        byte[] decodedBytes = MyBase64.decode((String)stringObjectMap.get("data"));
                         String decodedString = new String(decodedBytes).replaceAll(" ", "+");
-
-                        //TODO: is there a better way to differentiate the sender?
-                        String sender = stringObjectMap.toString().split(",", 2)[0].substring(6);
+                        String sender = (String)stringObjectMap.get("from");
 
                         Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
                         if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
@@ -176,8 +173,6 @@ class Pubsub {
 
                         if (!isJson(decryptedMessage)) return;
                         Message message = parseMessage(decryptedMessage);
-                        if (account.getPeer(message.getAuthorId()).getDiscriminator().equals("000000"))
-                            writeToPubsub(String.valueOf(message.getAuthorId()), MessageType.IDENTITY_REQUEST);
 
                         //TODO: better message save stuff
                         //TODO: decide if the message should be stored in messages
@@ -188,7 +183,7 @@ class Pubsub {
                                 messages.add(message);
                                 messageLookup.put(message.getMessageId(), message);
                                 saveMessages();
-                                System.out.println(message.getMessageId() + "  " +
+                                System.out.println(
                                         getTime(message.getTimestampLong()) + "  " +
                                         account.getPeer(message.getAuthorId()).getUsername() + "  " +
                                         message.getContent());
@@ -212,16 +207,6 @@ class Pubsub {
                                     yourself.getLogger().logWarning(msg.getAuthorId() + " tried to edit a message that was not theirs");
 //                                String response = "<type=edit messageId="+msg.getMessageId()+" oldContent=\""+oldContent+"\" newContent=\""+msg.getContent()+"\">";
 //                                sendMessage(response);
-                                break;
-                            }
-
-                            case IDENTITY_REQUEST: {
-                                if (Long.valueOf(message.getContent()) == account.getUserId()) {
-                                    JSONObject payload = new JSONObject();
-                                    payload.put("username", account.getUsername())
-                                            .put("discriminator", account.getDiscriminator());
-                                    writeToPubsub(payload.toString(), MessageType.IDENTITY_RESPONSE);
-                                }
                                 break;
                             }
 
@@ -249,13 +234,19 @@ class Pubsub {
                                 break;
                             }
 
-                            case IDENTITY_RESPONSE: {
-                                Peer peer = account.getPeer(message.getAuthorId());
+                            case IDENTITY_PACKET: {
                                 if (isJson(message.getContent())) {
+                                    Peer peer = account.getPeer(message.getAuthorId());
                                     JSONObject payload = new JSONObject(message.getContent());
+                                    boolean save = !peer.getFullUsername().equals(payload.getString("username")+'#'+payload.getString("discriminator"));
                                     peer.updateUsername(payload.getString("username"));
                                     peer.updateDiscriminator(payload.getString("discriminator"));
-                                    yourself.saveAccount();
+                                    account.registerPeerId(payload.getString("peer-id"), peer);
+                                    if (save) yourself.saveAccount();
+                                    if (!connectedPeers.contains(peer)) {
+                                        connectedPeers.add(peer);
+                                        onUserConnect(peer);
+                                    }
                                 }
                                 break;
                             }
@@ -387,7 +378,7 @@ class Pubsub {
                 if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
                     ready = true;
                 debug("completed handshake stage 2");
-                writeToPubsub("", MessageType.UNKNOWN);
+                sendIdentityPacket();
             } catch (Exception ignore2) { // stage 3
 
                 /*
@@ -405,10 +396,26 @@ class Pubsub {
                     yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
                     ready = true;
                     debug("completed handshake stage 3");
-                    writeToPubsub("", MessageType.UNKNOWN);
+                    sendIdentityPacket();
                 } catch (Exception ignore3) {}
             }
         }
+    }
+
+    private void sendIdentityPacket() {
+        JSONObject payload = new JSONObject();
+        payload.put("username", account.getUsername())
+                .put("discriminator", account.getDiscriminator())
+                .put("peer-id", IPFSnonPubsub.ipfsID);
+        writeToPubsub(payload.toString(), MessageType.IDENTITY_PACKET);
+    }
+
+    private void onUserConnect(Peer peer) {
+        System.out.println("\n"+peer.getUsername()+" is now online\n");
+    }
+
+    private void onUserDisconnect(Peer peer) {
+
     }
 
     /**

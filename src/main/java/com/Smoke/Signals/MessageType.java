@@ -6,8 +6,8 @@ public enum MessageType {
     COMMENT(2),
     POST(3),
     EDIT_MESSAGE(4),
-    IDENTITY_REQUEST(5),
-    IDENTITY_RESPONSE(6),
+    IDENTITY_PACKET(5),
+
     TYPING(7),
     FILE(8),
     LEAVE(9),

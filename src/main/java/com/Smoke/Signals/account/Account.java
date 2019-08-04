@@ -15,6 +15,7 @@ public class Account {
     private String discriminator;
     private HashSet<String> roomnames;
     private HashMap<Long, Peer> peers;
+    private volatile HashMap<String, Peer> idMap;
 
     public Account(String username) {
         this.username = username;
@@ -22,6 +23,7 @@ public class Account {
         userid = getFullUsername().hashCode() + System.currentTimeMillis();
         roomnames = new HashSet<>();
         peers = new HashMap<>();
+        idMap = new HashMap<>();
     }
 
     public Account(String username, String discriminator) {
@@ -30,6 +32,7 @@ public class Account {
         userid = getFullUsername().hashCode() + System.currentTimeMillis();
         roomnames = new HashSet<>();
         peers = new HashMap<>();
+        idMap = new HashMap<>();
     }
 
     public Account(JSONObject json) {
@@ -45,6 +48,7 @@ public class Account {
             Peer p = new Peer(new JSONObject(o.toString()));
             peers.put(p.getUserId(), p);
         });
+        idMap = new HashMap<>();
     }
 
     public long getUserId() {
@@ -71,6 +75,18 @@ public class Account {
         if (!peers.containsKey(userid))
             addPeer(new Peer(userid, "Unknown", "000000"));
         return peers.get(userid);
+    }
+
+    public Peer getPeer(String peerId) {
+        return idMap.get(peerId);
+    }
+
+    public void registerPeerId(String id, Peer peer) {
+        idMap.put(id, peer);
+    }
+
+    public Peer unregisterPeerId(String id) {
+        return idMap.remove(id);
     }
 
     /**
