@@ -7,6 +7,7 @@ public class main {
 
     public static void main(String[] args) throws IOException {
 
+        //User me = new User("Alex#123456");
         User me = new User("Christian#636174");
         me.initialize();
         connect(me);
@@ -15,8 +16,10 @@ public class main {
 
     private static void connect(User me) {
         String name;
-        try { name = me.joinRoom("Caleb#214628");
-        } catch (Exception e) { name = "Calebz214628Christianz636174"; }
+        try { //name = me.joinRoom("Christian#636174");
+            name = me.joinRoom("Caleb#214628");
+        } catch (Exception e) {
+            name = "Calebz214628Christianz636174"; }
         while (!me.isRoomReady(name))
             try { Thread.sleep(1000);
             } catch (InterruptedException ignore) {}
