@@ -646,6 +646,7 @@ class Pubsub {
         for (int i = Math.max(0, messages.size() - n); i < messages.size(); i++) {
             try {
                 Message msg = messages.get(i);
+                if (msg.getMessageType().equals(MessageType.PUBLIC))
                 sb.append(msg.getMessageId()).append("  ").append(getTime(msg.getTimestampLong())).append("  ").append(account.getPeer(msg.getAuthorId()).getUsername()).append("  ").append(msg.getContent()).append("\n");
             } catch (Exception e) {
                 e.printStackTrace();

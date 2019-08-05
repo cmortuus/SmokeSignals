@@ -57,6 +57,7 @@ class Invite {
     private HashMap<String, Pair<SecretKey, String>> secretKeys;
 
     boolean ready;
+    boolean shuttingDown;
 
     Invite(User yourself, String roomName) throws Exception {
         System.out.println("RoomName = " + roomName);
@@ -78,6 +79,7 @@ class Invite {
         secretKeys = new HashMap<>();
 
         ready = false;
+        shuttingDown = false;
         doesEverything();
     }
 
@@ -113,10 +115,18 @@ class Invite {
                         if (!ready)
                             try {
                                 main.debug("attempting to start a handshake");
+                                System.out.println(createOutgoingRsaText());
                                 ipfs.pubsub.pub(roomName, createOutgoingRsaText());
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
+                        if (!roomName.equals(account.getFullUsername())) {
+                            shuttingDown = true;
+                        }
+                        if (shuttingDown && connectedPeers.isEmpty()) {
+                            yourself.removeInviteRoom(roomName);
+                            return;
+                        }
                         try { Thread.sleep(10000);
                         } catch (InterruptedException ignore) {}
                     }
@@ -214,6 +224,7 @@ class Invite {
     }
 
     private void shakeHands(String sender, String message) {
+        if (shuttingDown) return;
         if (!MyBase64.isBase64(message)) return;
 
         //TODO: verify that this is someone we actually want to perform a handshake with

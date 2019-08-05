@@ -16,6 +16,7 @@ class User {
 
     private SocialMediaFeed socialMediaFeed;
     private Logging loggingChannel;
+    private HashMap<String, Invite> inviteRooms;
     private boolean initialized;
 
     final String alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -35,6 +36,7 @@ class User {
         account = null;
         socialMediaFeed = null;
         initialized = false;
+        inviteRooms = new HashMap<>();
     }
 
     /**
@@ -56,6 +58,7 @@ class User {
         // start logging broadcaster and social media receiver
         loggingChannel = new Logging(this);
         socialMediaFeed = new SocialMediaFeed(this, generateRoomName(), false);
+        startNewInviteRoom();
 
         // reconnect to existing roomnames
         for (String roomname : account.getRoomnames())
@@ -174,6 +177,15 @@ class User {
 
     static void addToRooms(String roomName, Pubsub room){
        rooms.put(roomName, room);
+    }
+
+    void removeInviteRoom(String roomname) {
+       inviteRooms.remove(roomname);
+    }
+
+    void startNewInviteRoom() throws Exception {
+       if (!inviteRooms.containsKey(account.getFullUsername()))
+           inviteRooms.put(account.getFullUsername(), new Invite(this, account.getFullUsername()));
     }
 
 //    /**
