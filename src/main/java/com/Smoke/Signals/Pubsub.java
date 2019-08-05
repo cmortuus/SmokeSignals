@@ -143,6 +143,8 @@ class Pubsub {
                     }
                 }).start();
 
+                ipfs.config.set("Pubsub.Router", "gossipsub");
+
                 // write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
                     if (stringObjectMap.isEmpty()) return;
