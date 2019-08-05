@@ -180,12 +180,16 @@ class User {
     }
 
     void removeInviteRoom(String roomname) {
+       main.debug("removed invite room "+roomname);
        inviteRooms.remove(roomname);
     }
 
     void startNewInviteRoom() throws Exception {
-       if (!inviteRooms.containsKey(account.getFullUsername()))
-           inviteRooms.put(account.getFullUsername(), new Invite(this, account.getFullUsername()));
+       String name = account.getUsername()+account.getDiscriminator();
+       if (!inviteRooms.containsKey(name)) {
+           inviteRooms.put(name, new Invite(this, name));
+           main.debug("started new invite room "+name);
+       }
     }
 
 //    /**

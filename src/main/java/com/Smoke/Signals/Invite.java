@@ -115,12 +115,12 @@ class Invite {
                         if (!ready)
                             try {
                                 main.debug("attempting to start a handshake");
-                                System.out.println(createOutgoingRsaText());
                                 ipfs.pubsub.pub(roomName, createOutgoingRsaText());
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
-                        if (!roomName.equals(account.getFullUsername())) {
+                        if (!roomName.equals(account.getUsername()+account.getDiscriminator())) {
+                            main.debug("initiating shutdown of "+roomName+" invite room");
                             shuttingDown = true;
                         }
                         if (shuttingDown && connectedPeers.isEmpty()) {
