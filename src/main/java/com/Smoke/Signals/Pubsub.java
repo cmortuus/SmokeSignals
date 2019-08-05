@@ -143,6 +143,8 @@ class Pubsub {
                     }
                 }).start();
 
+                ipfs.config.set("Pubsub.Router", "gossipsub");
+
                 // write out each line of the stream to a file and check if they are one of the users
                 room.forEach(stringObjectMap -> {
                     if (stringObjectMap.isEmpty()) return;
@@ -245,6 +247,14 @@ class Pubsub {
                                         onUserConnect(peer);
                                     }
                                 }
+                                break;
+                            }
+
+                            case LOG_REQUEST: {
+                                break;
+                            }
+
+                            case LOG_PACKET: {
                                 break;
                             }
 
@@ -368,30 +378,19 @@ class Pubsub {
 
     private void shakeHands(String sender, String message) {
         if (!MyBase64.isBase64(message)) return;
-
-        //TODO: verify that this is someone we actually want to perform a handshake with
         try { // stage 1
 
-            /*
-            Assume the message contains the public rsa key of a different peer.
-            Use their public rsa key to encrypt your secret aes key and send it to the other peer.
-             */
-
+            // Assume the message contains the public rsa key of a different peer.
+            // Use their public rsa key to encrypt your secret aes key and send it to the other peer.
             main.debug("attempting handshake stage 1");
             PublicKey key = parseIncomingRsaText(message);
             if (key == null) throw new Exception();
-            //TODO: implement check to ensure no suspicious accounts are listening in
             ipfs.pubsub.pub(roomName, createOutgoingAesText(key));
-            //TODO create user object and add it to the list for the room and for user
-//          if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
             main.debug("completed handshake stage 1");
         } catch (Exception ignore) { // stage 2
 
-            /*
-            Assume the message contains a secret aes key of a different peer encrypted with your public rsa key.
-            Use their aes key to encrypt your aes key and send it to the other peer.
-             */
-
+            // Assume the message contains a secret aes key of a different peer encrypted with your public rsa key.
+            // Use their aes key to encrypt your aes key and send it to the other peer.
             main.debug("attempting handshake stage 2");
             try {
                 Pair<SecretKey, String> pair = parseIncomingAesKey(message);
@@ -405,11 +404,8 @@ class Pubsub {
                 sendIdentityPacket();
             } catch (Exception ignore2) { // stage 3
 
-                /*
-                Assume the message contains a secret aes key of a different peer encrypted with your secret aes key.
-                Store their secret aes key for later reference.
-                 */
-
+                // Assume the message contains a secret aes key of a different peer encrypted with your secret aes key.
+                // Store their secret aes key for later reference.
                 main.debug("attempting handshake stage 3");
                 try {
                     String decrypted = Encryption.decrypt(message, aesKey, iv);
@@ -426,6 +422,14 @@ class Pubsub {
         }
     }
 
+    private void sendLogRequestPacket() {
+
+    }
+
+    private void sendLogPacket() {
+
+    }
+
     private void sendIdentityPacket() {
         JSONObject payload = new JSONObject();
         payload.put("username", account.getUsername())
@@ -434,6 +438,10 @@ class Pubsub {
         writeToPubsub(payload.toString(), MessageType.IDENTITY_PACKET);
     }
 
+    /**
+     * Called when a user joins the room and completes the handshake
+     * @param peer the peer that connected
+     */
     private void onUserConnect(Peer peer) {
         if (!connectedPeers.containsValue(peer))
             connectedPeers.put(peer.getUserId(), peer);
@@ -441,6 +449,10 @@ class Pubsub {
             System.out.println("\n"+peer.getUsername()+" is now online\n");
     }
 
+    /**
+     * Called when a user leaves the room
+     * @param peer the peer that left
+     */
     private void onUserDisconnect(Peer peer) {
         connectedPeers.remove(peer.getUserId());
         if (this.getClass().equals(Pubsub.class))
