@@ -8,8 +8,8 @@ public class main {
 
     public static void main(String[] args) throws Exception {
 
-        //User me = new User("Caleb#214628");
-        User me = new User("Christian#636174");
+        User me = new User("Caleb#214628");
+        //User me = new User("Christian#636174");
         me.initialize();
         connect(me);
 

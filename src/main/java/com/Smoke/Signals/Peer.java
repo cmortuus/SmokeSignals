@@ -70,7 +70,9 @@ import org.json.JSONObject;
         return new JSONObject()
                 .put("userid", userid)
                 .put("username", username)
-                .put("discriminator", discriminator);
+                .put("discriminator", discriminator)
+                .put("isOnline", isOnline)
+                .put("lastTimeOnline", lastTimeOnline);
     }
 
 }

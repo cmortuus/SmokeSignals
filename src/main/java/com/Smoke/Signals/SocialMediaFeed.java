@@ -6,20 +6,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 class SocialMediaFeed extends Pubsub {
-
+//TODO Store this roomname in the json file
     static HashMap<Long, Post> posts;
     private User yourself;
     private boolean isPublic;
-    static HashMap<String, Long> publicPages;
+    private static HashMap<String, Long> publicPages;
     private ArrayList<Pubsub> publicFollows;
+    private String roomName;
 
-    SocialMediaFeed(User yourself, boolean isPublic) throws Exception {
-        super(yourself, IPFSnonPubsub.ipfsID, true);
+    SocialMediaFeed(User yourself, String roomName, boolean isPublic) throws Exception {
+        super(yourself, roomName, true);
         posts = new HashMap<>();
         this.yourself = yourself;
         this.isPublic = isPublic;
         publicPages = new HashMap<>();
         publicFollows = new ArrayList<>();
+        this.roomName = roomName;
     }
 
     /**
@@ -110,8 +112,8 @@ class SocialMediaFeed extends Pubsub {
     }
 
     private void followPublic(String name) {
-        for (OtherUser user : yourself.getOtherUsers()) {
-            writeToPubsub(user.getHash().toString(), name, MessageType.GET_PUBLIC_PAGE_NAME);
+        for (Peer peer : yourself.getAccount().getPeers().values()) {
+            writeToPubsub(peer.getFullUsername(), name, MessageType.GET_PUBLIC_PAGE_NAME);
         }
     }
 
@@ -127,4 +129,6 @@ class SocialMediaFeed extends Pubsub {
     private void filterPost(Post postToCheck) {
 
     }
+
+
 }

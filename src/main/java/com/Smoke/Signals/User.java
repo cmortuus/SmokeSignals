@@ -1,14 +1,15 @@
 package com.Smoke.Signals;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
 class User {
 
-    private HashMap<String, Pubsub> rooms;
-    static private ArrayList<OtherUser> otherUsers;
+    private static HashMap<String, Pubsub> rooms;
 
     private String username;
     private Account account;
@@ -30,7 +31,6 @@ class User {
      */
     User(String user) {
         rooms = new HashMap<>();
-        otherUsers = new ArrayList<>();
         username = user;
         account = null;
         socialMediaFeed = null;
@@ -55,7 +55,7 @@ class User {
 
         // start logging broadcaster and social media receiver
         loggingChannel = new Logging(this);
-        socialMediaFeed = new SocialMediaFeed(this, false);
+        socialMediaFeed = new SocialMediaFeed(this, generateRoomName(), false);
 
         // reconnect to existing roomnames
         for (String roomname : account.getRoomnames())
@@ -99,10 +99,6 @@ class User {
         } catch (IOException e) { e.printStackTrace(); }
     }
 
-    ArrayList<OtherUser> getOtherUsers() {
-        return otherUsers;
-    }
-
     void sendInvite(String otherUser) throws Exception {
         if (!initialized) return;
         if (!isValidUserFormat(otherUser))
@@ -119,7 +115,7 @@ class User {
         saveAccount();
     }
 
-    void sendInvite(String otherUser, String roomname) throws Exception {
+    void sendInvite(String otherUser, String roomname, boolean saveMessages) throws Exception {
         if (!initialized) return;
         if (!isValidUserFormat(otherUser))
             throw new IllegalArgumentException("user does not fit the format username#discriminator");
@@ -130,7 +126,12 @@ class User {
             room = new Pubsub(this, otherUser, false);
             rooms.put(otherUser, room);
         }
-        room.writeToPubsub(roomname + username, MessageType.SEND_INVITE);
+        JSONArray peersArray = new JSONArray();
+        for (Peer p : account.getPeers().values())
+            peersArray.put(p.toJSONObject());
+
+        JSONObject jsonObject = new JSONObject().put("roomName", roomname).put("userName", username).put("peers", peersArray).put("saveMessages", saveMessages);
+        room.writeToPubsub(jsonObject.toString(), MessageType.SEND_INVITE);
         saveAccount();
     }
 
@@ -169,6 +170,10 @@ class User {
         for (int i = 0; i < 1024; i++)
             s.append(alphabet.charAt(r.nextInt(N)));
         return s.toString();
+    }
+
+    static void addToRooms(String roomName, Pubsub room){
+       rooms.put(roomName, room);
     }
 
 //    /**
