@@ -147,7 +147,6 @@ class User {
         if (!isValidUserFormat(otherUser))
             throw new IllegalArgumentException("user does not fit the format username#discriminator");
 
-//        String roomName = turnUsersToRoom(otherUser);
         if (rooms.containsKey(roomName)) throw new IllegalArgumentException("room already exists");
         account.addRoom(roomName);
         rooms.put(roomName, new Pubsub(this, roomName, true));
@@ -192,34 +191,6 @@ class User {
        }
     }
 
-//    /**
-//     * Turn the usernames of two users into a room name
-//     *
-//     * @param otherUser The username that is being added to yours to create the roomname
-//     * @return the new roomname
-//     */
-//    private String turnUsersToRoom(String otherUser) {
-//        String[] s = new String[]{otherUser, account.getFullUsername()};
-//        Arrays.sort(s);
-//        return String.join("", s).replace('#', 'z');
-//    }
-//
-//    /**
-//     * Overload of the normal method for group chats where there are many people in the chat
-//     *
-//     * @param users A list of users with which will be added to yours to create the roomname
-//     * @return the new username
-//     */
-//    private String turnUsersToRoom(String[] users) {
-//        String[] s = new String[users.length];
-//        s[0] = account.getFullUsername();
-//        int i = 0;
-//        for (String user : users)
-//            s[i++] = user;
-//        Arrays.sort(s);
-//        return String.join("", s).replace('#', 'z');
-//    }
-
     /**
      * Checks if the passed string is properly formatted as username#discriminator
      *
@@ -227,6 +198,6 @@ class User {
      * @return true if the format is valid
      */
     private boolean isValidUserFormat(String username) {
-        return username.matches("(.+#[0-9]+)$");
+        return username.matches("([a-zA-Z0-9]+#[a-zA-Z0-9]+)$");
     }
 }
