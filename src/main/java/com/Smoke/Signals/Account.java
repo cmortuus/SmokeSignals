@@ -1,23 +1,25 @@
-package com.Smoke.Signals.account;
+package com.Smoke.Signals;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Random;
 
-public class Account {
+class Account {
 
     private final long userid;
     private String username;
     private String discriminator;
     private HashSet<String> roomnames;
-    private HashMap<Long, Peer> peers;
-    private volatile HashMap<String, Peer> idMap;
+    static HashMap<Long, Peer> peers;
+    private transient HashMap<String, Peer> idMap;
+    private static final String ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int N = ALPHABET.length();
 
-    public Account(String username) {
+    Account(String username) {
         this.username = username;
         discriminator = generateDiscriminator();
         userid = getFullUsername().hashCode() + System.currentTimeMillis();
@@ -26,7 +28,7 @@ public class Account {
         idMap = new HashMap<>();
     }
 
-    public Account(String username, String discriminator) {
+    Account(String username, String discriminator) {
         this.username = username;
         this.discriminator = discriminator;
         userid = getFullUsername().hashCode() + System.currentTimeMillis();
@@ -35,7 +37,7 @@ public class Account {
         idMap = new HashMap<>();
     }
 
-    public Account(JSONObject json) {
+    Account(JSONObject json) {
         if (!json.has("userid") || !json.has("username") || !json.has("discriminator") || !json.has("roomnames") || !json.has("peers"))
             throw new IllegalArgumentException("missing fields");
         userid = json.getLong("userid");
@@ -51,70 +53,70 @@ public class Account {
         idMap = new HashMap<>();
     }
 
-    public long getUserId() {
+    long getUserId() {
         return userid;
     }
 
-    public String getUsername() {
+    String getUsername() {
         return username;
     }
 
-    public String getFullUsername() {
-        return username+'#'+discriminator;
+    String getFullUsername() {
+        return username + '#' + discriminator;
     }
 
-    public String getDiscriminator() {
+    String getDiscriminator() {
         return discriminator;
     }
 
-    public ArrayList<String> getRoomnames() {
+    ArrayList<String> getRoomnames() {
         return new ArrayList<>(roomnames);
     }
 
-    public Peer getPeer(long userid) {
+    Peer getPeer(long userid) {
         if (!peers.containsKey(userid))
             addPeer(new Peer(userid, "Unknown", "000000"));
         return peers.get(userid);
     }
 
-    public Peer getPeer(String peerId) {
+    Peer getPeer(String peerId) {
         return idMap.get(peerId);
     }
 
-    public void registerPeerId(String id, Peer peer) {
+    void registerPeerId(String id, Peer peer) {
         idMap.put(id, peer);
     }
 
-    public Peer unregisterPeerId(String id) {
+    Peer unregisterPeerId(String id) {
         return idMap.remove(id);
     }
 
     /**
      * Changes the username of the account and generates a new discriminator.
      *
-     * @param username  the new username to use
-     * @return          the old username#discriminator
+     * @param username the new username to use
+     * @return the old username#discriminator
      */
-    public String updateUsername(String username) {
+    String updateUsername(String username) {
         String result = getFullUsername();
         this.username = username;
         discriminator = generateDiscriminator();
         return result;
     }
 
-    public void addRoom(String roomname) {
+    void addRoom(String roomname) {
         roomnames.add(roomname);
     }
 
-    public void addPeer(Peer peer) {
+    void addPeer(Peer peer) {
         peers.put(peer.getUserId(), peer);
     }
 
-    public String getSaveFilename() {
-        return userid+".json";
+    String getSaveFilename() {
+        return userid + ".json";
     }
 
-    public JSONObject toJSONObject() {
+    JSONObject toJSONObject() {
         JSONArray peerArr = new JSONArray();
         peers.values().forEach(p -> peerArr.put(p.toJSONObject()));
         return new JSONObject()
@@ -125,14 +127,16 @@ public class Account {
                 .put("peers", peerArr);
     }
 
+    @Override
     public String toString() {
-        return username+'#'+discriminator+" ("+userid+")";
+        return username + '#' + discriminator + " (" + userid + ")";
     }
 
-    public static String generateDiscriminator() {
-        int min = 100000;
-        int max = 1000000;
-        return String.valueOf(new SecureRandom().nextInt((max - min) + 1) + min);
+    static String generateDiscriminator() {
+        Random r = new Random();
+        StringBuilder s = new StringBuilder();
+        for (int i = 0; i < 6; i++)
+            s.append(ALPHABET.charAt(r.nextInt(N)));
+        return s.toString();
     }
-
 }

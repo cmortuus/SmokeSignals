@@ -1,6 +1,5 @@
 package com.Smoke.Signals;
 
-import com.Smoke.Signals.account.Account;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;

@@ -1,7 +1,5 @@
 package com.Smoke.Signals;
 
-import com.Smoke.Signals.account.Account;
-import com.Smoke.Signals.account.Peer;
 import io.ipfs.api.IPFS;
 import io.ipfs.api.MerkleNode;
 import io.ipfs.multiaddr.MultiAddress;
@@ -47,7 +45,7 @@ class Pubsub {
 
     // username and hash
     private HashMap<String, String> users;
-    private ArrayList<Peer> connectedPeers;
+    private HashMap<Long, Peer> connectedPeers;
 
     // messages
     private boolean saveMessage;
@@ -61,7 +59,6 @@ class Pubsub {
     private PublicKey publicKey;
 
     boolean ready;
-    private static final boolean DEBUG = false;
 
     Pubsub(User yourself, String roomName, boolean saveMessage) {
         //System.out.println("RoomName = " + roomName);
@@ -72,7 +69,7 @@ class Pubsub {
             this.roomName = roomName;
             ipfs = new IPFS(new MultiAddress("/ip4/127.0.0.1/tcp/5001"));
             room = ipfs.pubsub.sub(roomName);
-            connectedPeers = new ArrayList<>();
+            connectedPeers = new HashMap<>();
 
             // messages
             this.saveMessage = saveMessage;
@@ -125,18 +122,18 @@ class Pubsub {
                 new Thread(() -> {
                     String lastPeers = "";
                     while (true) {
-                        if (DEBUG)
+                        if (main.DEBUG)
                             try {
                                 String currentPeers = ipfs.pubsub.peers(roomName).toString();
                                 if (!currentPeers.equals(lastPeers)) {
                                     lastPeers = currentPeers;
-                                    debug("peers: " + currentPeers);
+                                    main.debug("peers: " + currentPeers);
                                 }
                             } catch (IOException ignore) {
                             }
                         if (!ready)
                             try {
-                                debug("attempting to start a handshake");
+                                main.debug("attempting to start a handshake");
                                 ipfs.pubsub.pub(roomName, createOutgoingRsaText());
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -153,9 +150,9 @@ class Pubsub {
                     if (stringObjectMap.isEmpty()) return;
                     try {
 
-                        byte[] decodedBytes = MyBase64.decode((String)stringObjectMap.get("data"));
+                        byte[] decodedBytes = MyBase64.decode((String) stringObjectMap.get("data"));
                         String decodedString = new String(decodedBytes).replaceAll(" ", "+");
-                        String sender = (String)stringObjectMap.get("from");
+                        String sender = (String) stringObjectMap.get("from");
 
                         Pair<SecretKey, String> authorAesKey = yourself.getUserAesKey(sender);
                         if (authorAesKey == null) { // if we have not received an aes key from the author yet then perform a handshake
@@ -185,19 +182,23 @@ class Pubsub {
                                 saveMessages();
                                 System.out.println(
                                         getTime(message.getTimestampLong()) + "  " +
-                                        account.getPeer(message.getAuthorId()).getUsername() + "  " +
-                                        message.getContent());
+                                                account.getPeer(message.getAuthorId()).getUsername() + "  " +
+                                                message.getContent());
                                 writeToPubsub(String.valueOf(message.getMessageId()), MessageType.RECEIVED);
                                 break;
                             }
 
                             case READ_RESPONSE: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
                                 Message msg = messageLookup.get(message.getMessageId());
                                 if (msg != null) msg.editSeen(true);
                                 break;
                             }
 
                             case EDIT_MESSAGE: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
                                 Message msg = messageLookup.get(message.getMessageId());
                                 if (msg == null) return;
 //                                String oldContent = msg.getContent();
@@ -238,13 +239,13 @@ class Pubsub {
                                 if (isJson(message.getContent())) {
                                     Peer peer = account.getPeer(message.getAuthorId());
                                     JSONObject payload = new JSONObject(message.getContent());
-                                    boolean save = !peer.getFullUsername().equals(payload.getString("username")+'#'+payload.getString("discriminator"));
+                                    boolean save = !peer.getFullUsername().equals(payload.getString("username") + '#' + payload.getString("discriminator"));
                                     peer.updateUsername(payload.getString("username"));
                                     peer.updateDiscriminator(payload.getString("discriminator"));
                                     account.registerPeerId(payload.getString("peer-id"), peer);
                                     if (save) yourself.saveAccount();
-                                    if (!connectedPeers.contains(peer)) {
-                                        connectedPeers.add(peer);
+                                    if (!connectedPeers.values().contains(peer)) {
+                                        connectedPeers.put(message.getAuthorId(), peer);
                                         onUserConnect(peer);
                                     }
                                 }
@@ -252,10 +253,40 @@ class Pubsub {
                             }
 
                             case RECEIVED: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
                                 if (messageLookup.containsKey(Long.valueOf(message.getContent())))
                                     if (messageLookup.get(Long.valueOf(message.getContent())).getAuthorId() == yourself.getAccount().getUserId())
                                         messageLookup.get(Long.valueOf(message.getContent())).setReceivedTrue(message.getAuthorId());
                                 saveMessages();
+                                break;
+                            }
+
+                            case IS_ONLINE: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                Peer peer = connectedPeers.get(message.getAuthorId());
+                                peer.setLastTimeOnline(message.getTimestampLong());
+                                peer.setOnline(false);
+                                break;
+                            }
+
+                            case IS_OFFLINE: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                Peer peer = connectedPeers.get(message.getAuthorId());
+                                peer.setLastTimeOnline(message.getTimestampLong());
+                                peer.setOnline(true);
+                                break;
+                            }
+
+                            case SEND_INVITE: {
+                                messages.add(message);
+                                messageLookup.put(message.getMessageId(), message);
+                                System.out.println("We were invited to join chatroom: " +
+                                        message.getContent().substring(0, 1024) +
+                                        "\nby user " + message.getContent().substring(1024) +
+                                        "\nDo you want to accept?");
                                 break;
                             }
 
@@ -274,7 +305,7 @@ class Pubsub {
                                 if (SocialMediaFeed.posts.get(Long.parseLong(message.getContent())).getAuthorId() == (message.getAuthorId()))
                                     SocialMediaFeed.posts.remove(Long.parseLong(message.getContent()));
                                 else
-                                    yourself.getLogger().logWarning(message.getAuthorId() + " tried to delete a message that was not theirs.");
+                                    User.loggingChannel.logSecurity("Tried to delete a message that was not theirs: " + message.reportingToString());
                                 break;
                             }
 
@@ -294,7 +325,7 @@ class Pubsub {
                                 if (message.getAuthorId() == post.getAuthorId())
                                     post.deleteComment(Long.parseLong(splitContent[1]));
                                 else
-                                    yourself.getLogger().logWarning(message.getAuthorId() + " tried to delete a comment that was not theirs");
+                                    User.loggingChannel.logSecurity("Tried to delete a comment that was not theirs: " + message.reportingToString());
                                 break;
                             }
 
@@ -306,7 +337,7 @@ class Pubsub {
                                 if (message.getAuthorId() == post.getAuthorId())
                                     post.editComment(newComment.getPostContent(), newComment.getMessageId());
                                 else
-                                    yourself.getLogger().logWarning(message.getAuthorId() + " tried to edit a comment that was not theirs");
+                                    User.loggingChannel.logSecurity("Tried to edit a comment that was not theirs: " + message.reportingToString());
                                 break;
                             }
 
@@ -327,6 +358,7 @@ class Pubsub {
                                 break;
                             }
                             case UNKNOWN: {
+                                User.loggingChannel.logSecurity("Unknown message was sent: " + message.reportingToString());
                                 break;
                             }
                         }
@@ -353,14 +385,14 @@ class Pubsub {
             Use their public rsa key to encrypt your secret aes key and send it to the other peer.
              */
 
-            debug("attempting handshake stage 1");
+            main.debug("attempting handshake stage 1");
             PublicKey key = parseIncomingRsaText(message);
             if (key == null) throw new Exception();
             //TODO: implement check to ensure no suspicious accounts are listening in
             ipfs.pubsub.pub(roomName, createOutgoingAesText(key));
             //TODO create user object and add it to the list for the room and for user
 //          if (++numUsersFound == users.size() && ipfs.pubsub.peers(roomName).toString().split(",").length <= users.size()) {
-            debug("completed handshake stage 1");
+            main.debug("completed handshake stage 1");
         } catch (Exception ignore) { // stage 2
 
             /*
@@ -368,7 +400,7 @@ class Pubsub {
             Use their aes key to encrypt your aes key and send it to the other peer.
              */
 
-            debug("attempting handshake stage 2");
+            main.debug("attempting handshake stage 2");
             try {
                 Pair<SecretKey, String> pair = parseIncomingAesKey(message);
                 if (pair == null) return;
@@ -377,7 +409,7 @@ class Pubsub {
                 ipfs.pubsub.pub(roomName, Encryption.encrypt(MyBase64.encode(aesKey.getEncoded()) + "|" + iv, pair.getKey(), pair.getValue()));
                 if (!Arrays.equals(pair.getKey().getEncoded(), aesKey.getEncoded())) // check if you are performing a handshake with yourself
                     ready = true;
-                debug("completed handshake stage 2");
+                main.debug("completed handshake stage 2");
                 sendIdentityPacket();
             } catch (Exception ignore2) { // stage 3
 
@@ -386,7 +418,7 @@ class Pubsub {
                 Store their secret aes key for later reference.
                  */
 
-                debug("attempting handshake stage 3");
+                main.debug("attempting handshake stage 3");
                 try {
                     String decrypted = Encryption.decrypt(message, aesKey, iv);
                     String[] joined = decrypted.split("\\|");
@@ -395,9 +427,10 @@ class Pubsub {
                     SecretKey key = new SecretKeySpec(bytes, "AES");
                     yourself.addSecretKey(sender, new Pair<>(key, joined[1]));
                     ready = true;
-                    debug("completed handshake stage 3");
+                    main.debug("completed handshake stage 3");
                     sendIdentityPacket();
-                } catch (Exception ignore3) {}
+                } catch (Exception ignore3) {
+                }
             }
         }
     }
@@ -411,7 +444,7 @@ class Pubsub {
     }
 
     private void onUserConnect(Peer peer) {
-        System.out.println("\n"+peer.getUsername()+" is now online\n");
+        System.out.println("\n" + peer.getUsername() + " is now online\n");
     }
 
     private void onUserDisconnect(Peer peer) {
@@ -488,9 +521,9 @@ class Pubsub {
     }
 
     private void sendFile(String filename) {
-        try{
+        try {
             writeToPubsub(IPFSnonPubsub.addFile(filename).hash.toString() + IPFSnonPubsub.fileKey, MessageType.FILE);
-        }catch (NullPointerException e){
+        } catch (NullPointerException e) {
             e.printStackTrace();
         }
     }
@@ -590,12 +623,10 @@ class Pubsub {
     }
 
     private void closeApp() {
+        writeToPubsub("", MessageType.IS_OFFLINE);
         saveMessages();
         messages.clear();
         messageLookup.clear();
     }
 
-    private void debug(String message) {
-        if (DEBUG) System.out.println("[DEBUG] " + message);
-    }
 }

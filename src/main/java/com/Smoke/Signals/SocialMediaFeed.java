@@ -29,13 +29,11 @@ class SocialMediaFeed extends Pubsub {
      * @param post The pure text of what needs to be uploaded
      */
     private void postMessage(String post) {
-        if (!isPublic) {
-            for (OtherUser user : yourself.getOtherUsers()) {
-                writeToPubsub(user.getHash().toString(), post, MessageType.POST);
-            }
-        } else {
+        if (!isPublic)
+            for (Peer peer : Account.peers.values())
+                writeToPubsub(peer.getFullUsername(), post, MessageType.POST);
+        else
             writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post, MessageType.POST);
-        }
     }
 
     /**
@@ -46,13 +44,12 @@ class SocialMediaFeed extends Pubsub {
      * @param hashOfImage The multiHash in string form of the image that is posted.
      */
     private void postMessage(String post, Multihash hashOfImage) {
-        if (!isPublic) {
-            for (OtherUser user : yourself.getOtherUsers()) {
-                writeToPubsub(user.getHash().toString(), post + "#" + hashOfImage.toString(), MessageType.POST);
-            }
-        } else {
+        if (!isPublic)
+            for (Peer peer : Account.peers.values())
+                writeToPubsub(peer.getFullUsername(), post + "#" + hashOfImage.toString(), MessageType.POST);
+        else
             writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post + "#" + hashOfImage.toString(), MessageType.POST);
-        }
+
     }
 
     /**

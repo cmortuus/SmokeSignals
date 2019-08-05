@@ -110,6 +110,17 @@ class Message implements Comparable<Message> {
         received.add(userID);
     }
 
+    String reportingToString() {
+        JSONObject _message = new JSONObject();
+        _message.put("messageId", messageId)
+                .put("timestamp", timestamp)
+                .put("type", type)
+                .put("seen", seen)
+                .put("authorId", authorId)
+                .put("received", new JSONArray(received));
+        return _message.toString();
+    }
+
     @Override
     public String toString() {
         JSONObject _message = new JSONObject();

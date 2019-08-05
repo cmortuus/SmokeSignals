@@ -1,20 +1,24 @@
-package com.Smoke.Signals.account;
+package com.Smoke.Signals;
 
 import org.json.JSONObject;
 
-public class Peer {
+ class Peer {
 
     private final long userid;
     private String username;
     private String discriminator;
+    private boolean isOnline;
+    private long lastTimeOnline;
 
-    public Peer(long userid, String username, String discriminator) {
+     Peer(long userid, String username, String discriminator) {
         this.userid = userid;
         this.username = username;
         this.discriminator = discriminator;
+        this.isOnline = false;
+        this.lastTimeOnline = 0;
     }
 
-    public Peer(JSONObject json) {
+     Peer(JSONObject json) {
         if (!json.has("userid") || !json.has("username") || !json.has("discriminator"))
             throw new IllegalArgumentException("missing fields");
         userid = json.getLong("userid");
@@ -22,31 +26,47 @@ public class Peer {
         discriminator = json.getString("discriminator");
     }
 
-    public long getUserId() {
+     long getUserId() {
         return userid;
     }
 
-    public String getUsername() {
+     String getUsername() {
         return username;
     }
 
-    public String getFullUsername() {
+     String getFullUsername() {
         return username+'#'+discriminator;
     }
 
-    public String getDiscriminator() {
+     String getDiscriminator() {
         return discriminator;
     }
 
-    public void updateUsername(String username) {
+     void updateUsername(String username) {
         this.username = username;
     }
 
-    public void updateDiscriminator(String discriminator) {
+     void updateDiscriminator(String discriminator) {
         this.discriminator = discriminator;
     }
 
-    public JSONObject toJSONObject() {
+     void setOnline(boolean isOnline){
+        this.isOnline = isOnline;
+    }
+
+     boolean getIsOnline(){
+        return isOnline;
+    }
+
+     long getLastTimeOnline() {
+        return lastTimeOnline;
+    }
+
+     void setLastTimeOnline(long lastTimeOnline) {
+        this.lastTimeOnline = lastTimeOnline;
+    }
+
+     JSONObject toJSONObject() {
         return new JSONObject()
                 .put("userid", userid)
                 .put("username", username)

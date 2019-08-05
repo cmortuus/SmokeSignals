@@ -21,6 +21,9 @@ public enum MessageType {
     GET_PUBLIC_PAGE_NAME(19),
     RETURN_PUBLIC_PAGE_NAME(20),
     RECEIVED(21),
+    IS_ONLINE(22),
+    IS_OFFLINE(23),
+    SEND_INVITE(24),
     UNKNOWN(-1);
 
     private final int id;
