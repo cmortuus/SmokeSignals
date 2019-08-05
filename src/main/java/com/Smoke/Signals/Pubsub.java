@@ -251,10 +251,43 @@ class Pubsub {
                             }
 
                             case LOG_REQUEST: {
+                                if (!isJson(message.getContent())) break;
+                                JSONObject packet = new JSONObject(message.getContent());
+                                if (!packet.has("ignore-if-absent") || !packet.has("data")) break;
+                                boolean ignoreIfAbsent = packet.getBoolean("ignore-if-absent");
+                                JSONObject data = packet.getJSONObject("data");
+                                Map<String, Object> map = data.toMap();
+                                if (!map.keySet().contains(String.valueOf(account.getUserId())) && !ignoreIfAbsent) {
+                                    sendLogPacket(0, message.getAuthorId());
+                                    break;
+                                }
+                                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                                    try {
+                                        if (Long.parseLong(entry.getKey()) == account.getUserId()) {
+                                            sendLogPacket((long) entry.getValue(), message.getAuthorId());
+                                            break;
+                                        }
+                                    } catch (NumberFormatException nfe) {
+                                        nfe.printStackTrace();
+                                    }
+                                }
                                 break;
                             }
 
                             case LOG_PACKET: {
+                                if (!isJson(message.getContent())) break;
+                                JSONObject json = new JSONObject(message.getContent());
+                                if (!json.has("caller") || !json.has("logs")) break;
+                                if (json.getLong("caller") != account.getUserId()) break;
+                                for (Object o : json.getJSONArray("logs")) {
+                                    Message msg = new Message(new JSONObject(o.toString()));
+                                    if (!messageLookup.containsKey(msg.getMessageId())) {
+                                        messageLookup.put(msg.getMessageId(), msg);
+                                        messages.add(msg);
+                                    }
+                                }
+                                Collections.sort(messages);
+                                saveMessages();
                                 break;
                             }
 
@@ -402,6 +435,7 @@ class Pubsub {
                     ready = true;
                 main.debug("completed handshake stage 2");
                 sendIdentityPacket();
+                sendLogRequestPacket();
             } catch (Exception ignore2) { // stage 3
 
                 // Assume the message contains a secret aes key of a different peer encrypted with your secret aes key.
@@ -417,17 +451,43 @@ class Pubsub {
                     ready = true;
                     main.debug("completed handshake stage 3");
                     sendIdentityPacket();
+                    sendLogRequestPacket();
                 } catch (Exception ignore3) {}
             }
         }
     }
 
     private void sendLogRequestPacket() {
-
+        ArrayList<Long> knownIds = new ArrayList<>();
+        Map<Long, Long> lastSynced = new HashMap<>();
+        for (Peer peer : account.getPeers().values()) {
+            if (peer.getJoinedRooms().contains(roomName))
+                knownIds.add(peer.getUserId());
+        }
+        for (int i=messages.size()-1; i>=0; i--) {
+            Message msg = messages.get(i);
+            if (knownIds.contains(msg.getAuthorId())) {
+                lastSynced.put(msg.getAuthorId(), msg.getTimestampLong());
+                knownIds.remove(msg.getAuthorId());
+            }
+            if (knownIds.isEmpty()) break;
+        }
+        JSONObject packet = new JSONObject();
+        packet.put("ignore-if-absent", false);
+        packet.put("data", new JSONObject(lastSynced));
+        writeToPubsub(packet.toString(), MessageType.LOG_REQUEST);
     }
 
-    private void sendLogPacket() {
-
+    private void sendLogPacket(long timestamp, long callerId) {
+        ArrayList<Message> logs = new ArrayList<>();
+        for (int i=messages.size()-1; i>=0; i--) {
+            Message msg = messages.get(i);
+            if (msg.getTimestampLong() < timestamp) break;
+            logs.add(msg);
+        }
+        JSONArray jsonLogs = new JSONArray();
+        for (Message l : logs) jsonLogs.put(l.toJSONObject());
+        writeToPubsub(new JSONObject().put("caller", callerId).put("logs", jsonLogs).toString(), MessageType.LOG_PACKET);
     }
 
     private void sendIdentityPacket() {
@@ -443,6 +503,7 @@ class Pubsub {
      * @param peer the peer that connected
      */
     private void onUserConnect(Peer peer) {
+        peer.addJoinedRoom(roomName);
         if (!connectedPeers.containsValue(peer))
             connectedPeers.put(peer.getUserId(), peer);
         if (this.getClass().equals(Pubsub.class))

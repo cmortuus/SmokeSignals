@@ -36,6 +36,10 @@ class Peer {
         if (json.has("associated-social-media"))
             json.getJSONArray("associated-social-media").iterator().forEachRemaining(o -> joinedSocialMediaProfiles.add(String.valueOf(o.toString())));
         else joinedSocialMediaProfiles = new HashSet<>();
+        if (json.has("isOnline"))
+            isOnline = json.getBoolean("isOnline");
+        if (json.has("lastTimeOnline"))
+            lastTimeOnline = json.getLong("lastTimeOnline");
     }
 
     long getUserId() {

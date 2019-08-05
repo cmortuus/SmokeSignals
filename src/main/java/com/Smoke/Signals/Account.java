@@ -46,10 +46,14 @@ class Account {
         roomnames = new HashSet<>();
         json.getJSONArray("roomnames").iterator().forEachRemaining(o -> roomnames.add(String.valueOf(o.toString())));
         peers = new HashMap<>();
-        json.getJSONArray("peers").iterator().forEachRemaining(o -> {
+        for (Object o : json.getJSONArray("peers")) {
             Peer p = new Peer(new JSONObject(o.toString()));
             peers.put(p.getUserId(), p);
-        });
+        }
+//        json.getJSONArray("peers").iterator().forEachRemaining(o -> {
+//            Peer p = new Peer(new JSONObject(o.toString()));
+//            peers.put(p.getUserId(), p);
+//        });
         idMap = new HashMap<>();
     }
 
