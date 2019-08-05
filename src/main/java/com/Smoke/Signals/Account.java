@@ -14,7 +14,7 @@ class Account {
     private String username;
     private String discriminator;
     private HashSet<String> roomnames;
-    static HashMap<Long, Peer> peers;
+    private HashMap<Long, Peer> peers;
     private transient HashMap<String, Peer> idMap;
     private static final String ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int N = ALPHABET.length();
@@ -81,6 +81,10 @@ class Account {
 
     Peer getPeer(String peerId) {
         return idMap.get(peerId);
+    }
+
+    HashMap<Long, Peer> getPeers() {
+        return peers;
     }
 
     void registerPeerId(String id, Peer peer) {

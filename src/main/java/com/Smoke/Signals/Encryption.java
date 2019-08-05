@@ -39,7 +39,7 @@ class Encryption {
 
     static String decrypt(String strToDecrypt, SecretKey secretKey, String initVector) throws Exception {
         IvParameterSpec iv = new IvParameterSpec(MyBase64.decode(initVector));
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.DECRYPT_MODE, secretKey, iv);
         return new String(cipher.doFinal(MyBase64.decode(strToDecrypt)));
     }

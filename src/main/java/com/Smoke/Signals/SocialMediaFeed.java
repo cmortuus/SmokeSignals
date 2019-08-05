@@ -13,7 +13,7 @@ class SocialMediaFeed extends Pubsub {
     static HashMap<String, Long> publicPages;
     private ArrayList<Pubsub> publicFollows;
 
-    SocialMediaFeed(User yourself, boolean isPublic) {
+    SocialMediaFeed(User yourself, boolean isPublic) throws Exception {
         super(yourself, IPFSnonPubsub.ipfsID, true);
         posts = new HashMap<>();
         this.yourself = yourself;
@@ -30,7 +30,7 @@ class SocialMediaFeed extends Pubsub {
      */
     private void postMessage(String post) {
         if (!isPublic)
-            for (Peer peer : Account.peers.values())
+            for (Peer peer : yourself.getAccount().getPeers().values())
                 writeToPubsub(peer.getFullUsername(), post, MessageType.POST);
         else
             writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post, MessageType.POST);
@@ -45,7 +45,7 @@ class SocialMediaFeed extends Pubsub {
      */
     private void postMessage(String post, Multihash hashOfImage) {
         if (!isPublic)
-            for (Peer peer : Account.peers.values())
+            for (Peer peer : yourself.getAccount().getPeers().values())
                 writeToPubsub(peer.getFullUsername(), post + "#" + hashOfImage.toString(), MessageType.POST);
         else
             writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post + "#" + hashOfImage.toString(), MessageType.POST);
@@ -115,7 +115,7 @@ class SocialMediaFeed extends Pubsub {
         }
     }
 
-    void followPublic(long publicID) {
+    void followPublic(long publicID) throws Exception {
         publicFollows.add(new Pubsub(yourself, String.valueOf(publicID), true));
     }
 

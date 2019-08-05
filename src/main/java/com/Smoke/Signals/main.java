@@ -1,25 +1,25 @@
 package com.Smoke.Signals;
 
-import java.io.IOException;
 import java.util.Scanner;
 
 public class main {
 
     static final boolean DEBUG = false;
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
 
-        //User me = new User("Alex#123456");
-        User me = new User("Caleb#214628");
+        //User me = new User("Caleb#214628");
+        User me = new User("Christian#636174");
         me.initialize();
         connect(me);
+
     }
 
     private static void connect(User me) {
         String name;
-        try {
+        try { //name = me.joinRoom("Christian#636174");
+            //name = me.joinRoom("Caleb#214628");
             name = me.joinRoom("Christian#636174", "Calebz214628Christianz636174");
-//            name = me.joinRoom("Caleb#214628");
         } catch (Exception e) {
             name = "Calebz214628Christianz636174"; }
         while (!me.isRoomReady(name))

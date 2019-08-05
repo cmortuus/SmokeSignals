@@ -1,6 +1,5 @@
 package com.Smoke.Signals;
 
-import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,14 +8,13 @@ import java.util.Random;
 class User {
 
     private HashMap<String, Pubsub> rooms;
-    private HashMap<String, Pair<SecretKey, String>> secretKeys;
     static private ArrayList<OtherUser> otherUsers;
 
     private String username;
     private Account account;
 
     private SocialMediaFeed socialMediaFeed;
-    static Logging loggingChannel;
+    private Logging loggingChannel;
     private boolean initialized;
 
     final String alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -31,20 +29,20 @@ class User {
      * @param user the username the client is connected to. (username#discriminator for existing accounts, username for new accounts)
      */
     User(String user) {
-        initialized = false;
+        rooms = new HashMap<>();
+        otherUsers = new ArrayList<>();
         username = user;
         account = null;
-        rooms = new HashMap<>();
-        secretKeys = new HashMap<>();
-        otherUsers = new ArrayList<>();
+        socialMediaFeed = null;
+        initialized = false;
     }
 
     /**
      * Initializes everything. This must be called before anything else!
      *
-     * @throws IOException
+     * @throws Exception
      */
-    void initialize() throws IOException {
+    void initialize() throws Exception {
 
         // ensure valid username#discrim; regen discrim if necessary
         if (!isValidUserFormat(username))
@@ -53,7 +51,7 @@ class User {
 
         // grab or generate account save data
         int index = username.lastIndexOf('#');
-        account = FileLoader.getAccount(username.substring(0, index), username.substring(index + 1));
+        account = FileLoader.getAccount(username.substring(0, index), username.substring(index+1));
 
         // start logging broadcaster and social media receiver
         loggingChannel = new Logging(this);
@@ -97,48 +95,50 @@ class User {
      */
     void saveAccount() {
         if (!initialized) return;
-        try {
-            FileLoader.saveAccount(account);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    void addSecretKey(String associatedUser, Pair<SecretKey, String> pair) {
-        secretKeys.put(associatedUser, pair);
-    }
-
-    Pair<SecretKey, String> getUserAesKey(String user) {
-        return secretKeys.get(user);
+        try { FileLoader.saveAccount(account);
+        } catch (IOException e) { e.printStackTrace(); }
     }
 
     ArrayList<OtherUser> getOtherUsers() {
         return otherUsers;
     }
 
-    /**
-     * @param otherUser the username#discriminator of the user you wish to connect to
-     * @return the created roomname or {@linkplain null} if the client has not been initialized
-     */
-    String joinRoom(String otherUser) {
-        String roomName = generateRoomName();
-        if (!initialized) return null;
-        new Pubsub(this, otherUser, false).writeToPubsub(roomName + username, MessageType.SEND_INVITE);
+    void sendInvite(String otherUser) throws Exception {
+        if (!initialized) return;
         if (!isValidUserFormat(otherUser))
             throw new IllegalArgumentException("user does not fit the format username#discriminator");
-
-//        String roomName = turnUsersToRoom(otherUser);
-        if (rooms.containsKey(roomName)) throw new IllegalArgumentException("room already exists");
-        account.addRoom(roomName);
-        rooms.put(roomName, new Pubsub(this, roomName, true));
+        String roomname = generateRoomName();
+        Pubsub room;
+        if (rooms.containsValue(otherUser)) {
+            room = rooms.get(otherUser);
+        } else {
+            room = new Pubsub(this, otherUser, false);
+            rooms.put(otherUser, room);
+        }
+        room.writeToPubsub(roomname + username, MessageType.SEND_INVITE);
         saveAccount();
-        return roomName;
     }
+
+    void sendInvite(String otherUser, String roomname) throws Exception {
+        if (!initialized) return;
+        if (!isValidUserFormat(otherUser))
+            throw new IllegalArgumentException("user does not fit the format username#discriminator");
+        Pubsub room;
+        if (rooms.containsValue(otherUser)) {
+            room = rooms.get(otherUser);
+        } else {
+            room = new Pubsub(this, otherUser, false);
+            rooms.put(otherUser, room);
+        }
+        room.writeToPubsub(roomname + username, MessageType.SEND_INVITE);
+        saveAccount();
+    }
+
     /**
      * @param otherUser the username#discriminator of the user you wish to connect to
      * @return the created roomname or {@linkplain null} if the client has not been initialized
      */
-   String joinRoom(String otherUser, String roomName) {
+   String joinRoom(String otherUser, String roomName) throws Exception {
         if (!initialized) return null;
         if (!isValidUserFormat(otherUser))
             throw new IllegalArgumentException("user does not fit the format username#discriminator");
@@ -167,9 +167,37 @@ class User {
         Random r = new Random();
         StringBuilder s = new StringBuilder();
         for (int i = 0; i < 1024; i++)
-           s.append(alphabet.charAt(r.nextInt(N)));
+            s.append(alphabet.charAt(r.nextInt(N)));
         return s.toString();
     }
+
+//    /**
+//     * Turn the usernames of two users into a room name
+//     *
+//     * @param otherUser The username that is being added to yours to create the roomname
+//     * @return the new roomname
+//     */
+//    private String turnUsersToRoom(String otherUser) {
+//        String[] s = new String[]{otherUser, account.getFullUsername()};
+//        Arrays.sort(s);
+//        return String.join("", s).replace('#', 'z');
+//    }
+//
+//    /**
+//     * Overload of the normal method for group chats where there are many people in the chat
+//     *
+//     * @param users A list of users with which will be added to yours to create the roomname
+//     * @return the new username
+//     */
+//    private String turnUsersToRoom(String[] users) {
+//        String[] s = new String[users.length];
+//        s[0] = account.getFullUsername();
+//        int i = 0;
+//        for (String user : users)
+//            s[i++] = user;
+//        Arrays.sort(s);
+//        return String.join("", s).replace('#', 'z');
+//    }
 
     /**
      * Checks if the passed string is properly formatted as username#discriminator
