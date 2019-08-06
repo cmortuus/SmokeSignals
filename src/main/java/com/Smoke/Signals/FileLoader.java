@@ -1,6 +1,5 @@
 package com.Smoke.Signals;
 
-import com.Smoke.Signals.account.Account;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -154,7 +153,7 @@ public class FileLoader {
      * @return true if the format is valid
      */
     private static boolean isValidUserFormat(String username) {
-        return username.matches("(.+#[0-9]+)$");
+        return username.matches("([a-zA-Z0-9]+#[a-zA-Z0-9]+)$");
     }
 
 }

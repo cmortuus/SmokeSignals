@@ -6,21 +6,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 class SocialMediaFeed extends Pubsub {
-
+//TODO Store this roomname in the json file
     static HashMap<Long, Post> posts;
     private User yourself;
     private boolean isPublic;
-    static HashMap<String, Long> publicPages;
+    private static HashMap<String, Long> publicPages;
     private ArrayList<Pubsub> publicFollows;
+    private String roomName;
 
-    SocialMediaFeed(User yourself, boolean isPublic) {
-        super(yourself, IPFSnonPubsub.ipfsID, true);
+    SocialMediaFeed(User yourself, String roomName, boolean isPublic) throws Exception {
+        super(yourself, roomName, true);
         posts = new HashMap<>();
         this.yourself = yourself;
         this.isPublic = isPublic;
         publicPages = new HashMap<>();
         publicFollows = new ArrayList<>();
-        ready =  true;
+        this.roomName = roomName;
     }
 
     /**
@@ -30,13 +31,11 @@ class SocialMediaFeed extends Pubsub {
      * @param post The pure text of what needs to be uploaded
      */
     private void postMessage(String post) {
-        if (!isPublic) {
-            for (OtherUser user : yourself.getOtherUsers()) {
-                writeToPubsub(user.getHash().toString(), post, MessageType.POST);
-            }
-        } else {
+        if (!isPublic)
+            for (Peer peer : yourself.getAccount().getPeers().values())
+                writeToPubsub(peer.getFullUsername(), post, MessageType.POST);
+        else
             writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post, MessageType.POST);
-        }
     }
 
     /**
@@ -47,13 +46,12 @@ class SocialMediaFeed extends Pubsub {
      * @param hashOfImage The multiHash in string form of the image that is posted.
      */
     private void postMessage(String post, Multihash hashOfImage) {
-        if (!isPublic) {
-            for (OtherUser user : yourself.getOtherUsers()) {
-                writeToPubsub(user.getHash().toString(), post + "#" + hashOfImage.toString(), MessageType.POST);
-            }
-        } else {
+        if (!isPublic)
+            for (Peer peer : yourself.getAccount().getPeers().values())
+                writeToPubsub(peer.getFullUsername(), post + "#" + hashOfImage.toString(), MessageType.POST);
+        else
             writeToPubsub(String.valueOf(yourself.getAccount().getUserId()), post + "#" + hashOfImage.toString(), MessageType.POST);
-        }
+
     }
 
     /**
@@ -114,12 +112,12 @@ class SocialMediaFeed extends Pubsub {
     }
 
     private void followPublic(String name) {
-        for (OtherUser user : yourself.getOtherUsers()) {
-            writeToPubsub(user.getHash().toString(), name, MessageType.GET_PUBLIC_PAGE_NAME);
+        for (Peer peer : yourself.getAccount().getPeers().values()) {
+            writeToPubsub(peer.getFullUsername(), name, MessageType.GET_PUBLIC_PAGE_NAME);
         }
     }
 
-    void followPublic(long publicID) {
+    void followPublic(long publicID) throws Exception {
         publicFollows.add(new Pubsub(yourself, String.valueOf(publicID), true));
     }
 
@@ -131,4 +129,6 @@ class SocialMediaFeed extends Pubsub {
     private void filterPost(Post postToCheck) {
 
     }
+
+
 }

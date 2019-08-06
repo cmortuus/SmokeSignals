@@ -1,35 +1,23 @@
 package com.Smoke.Signals;
 
 public enum MessageType {
-    PUBLIC(0),
-    READ_RESPONSE(1),
-    COMMENT(2),
-    POST(3),
-    EDIT_MESSAGE(4),
-    IDENTITY_REQUEST(5),
-    IDENTITY_RESPONSE(6),
-    TYPING(7),
-    FILE(8),
-    LEAVE(9),
-    REMOVE(10),
-    ADD(11),
-    EDIT_COMMENT(13),
-    DELETE_COMMENT(14),
-    DELETE_POST(15),
-    EDIT_COMMENT_WITH_IMAGE(17),
-    ERROR(18),
-    GET_PUBLIC_PAGE_NAME(19),
-    RETURN_PUBLIC_PAGE_NAME(20),
-    RECEIVED(21),
-    UNKNOWN(-1);
-
-    private final int id;
-
-    MessageType(int id) {
-        this.id = id;
-    }
-
-    public int getId() {
-        return id;
-    }
+    PUBLIC,
+    READ_RESPONSE,
+    COMMENT,
+    POST,
+    EDIT_MESSAGE,
+    IDENTITY_PACKET, LOG_PACKET, LOG_REQUEST,
+    TYPING,
+    FILE,
+    LEAVE,
+    REMOVE,
+    ADD,
+    EDIT_COMMENT, DELETE_COMMENT, EDIT_COMMENT_WITH_IMAGE,
+    DELETE_POST,
+    ERROR,
+    GET_PUBLIC_PAGE_NAME, RETURN_PUBLIC_PAGE_NAME,
+    RECEIVED,
+    IS_ONLINE, IS_OFFLINE,
+    SEND_INVITE,
+    UNKNOWN
 }
