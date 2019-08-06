@@ -61,8 +61,7 @@ public class FileLoader {
                     account = new Account(new JSONObject(sb.toString()));
                 }
             } else throw new RuntimeException("Account save data is missing!");
-        }
-
+        } else saveAccount(account);
         return account;
     }
 
