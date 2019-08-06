@@ -111,8 +111,10 @@ class Pubsub {
     private void doesEverything() {
         new Thread(() -> {
             try {
-                loadMessages();
-                printLastMessages(20);
+                if(saveMessage){
+                    loadMessages();
+                    printLastMessages(20);
+                }
 
                 // initiate handshake
                 new Thread(() -> {
@@ -241,6 +243,7 @@ class Pubsub {
                                     boolean save = !peer.getFullUsername().equals(payload.getString("username")+'#'+payload.getString("discriminator"));
                                     peer.updateUsername(payload.getString("username"));
                                     peer.updateDiscriminator(payload.getString("discriminator"));
+                                    peer.updateSocialMediaRoom(payload.getString("socialMediaRoom"));
                                     account.registerPeerId(payload.getString("peer-id"), peer);
                                     if (save) yourself.saveAccount();
                                     if (!connectedPeers.containsValue(peer)) {
@@ -494,7 +497,8 @@ class Pubsub {
         JSONObject payload = new JSONObject();
         payload.put("username", account.getUsername())
                 .put("discriminator", account.getDiscriminator())
-                .put("peer-id", IPFSnonPubsub.ipfsID);
+                .put("peer-id", IPFSnonPubsub.ipfsID)
+                .put("socialMediaRoom", Account.getSocialMediaRoomName());
         writeToPubsub(payload.toString(), MessageType.IDENTITY_PACKET);
     }
 

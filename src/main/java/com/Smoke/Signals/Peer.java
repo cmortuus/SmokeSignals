@@ -11,17 +11,19 @@ class Peer {
     private String discriminator;
     private boolean isOnline;
     private long lastTimeOnline;
+    private String socialMediaRoom;
     private HashSet<String> joinedRooms;
     private HashSet<String> joinedSocialMediaProfiles;
 
-    Peer(long userid, String username, String discriminator) {
+    Peer(long userid, String username, String discriminator, String socialMediaRoom) {
         this.userid = userid;
         this.username = username;
         this.discriminator = discriminator;
         this.isOnline = false;
         this.lastTimeOnline = 0;
-        joinedRooms = new HashSet<>();
-        joinedSocialMediaProfiles = new HashSet<>();
+        this.socialMediaRoom = socialMediaRoom;
+        this.joinedRooms = new HashSet<>();
+        this.joinedSocialMediaProfiles = new HashSet<>();
     }
 
     Peer(JSONObject json) {
@@ -40,6 +42,7 @@ class Peer {
             isOnline = json.getBoolean("isOnline");
         if (json.has("lastTimeOnline"))
             lastTimeOnline = json.getLong("lastTimeOnline");
+        this.socialMediaRoom = json.getString("socialMediaRoom");
     }
 
     long getUserId() {
@@ -106,13 +109,22 @@ class Peer {
         joinedSocialMediaProfiles.remove(name);
     }
 
+    void updateSocialMediaRoom(String socialMediaRoom){
+        this.socialMediaRoom = socialMediaRoom;
+    }
+
+    String getSocialMediaRoom(){
+        return socialMediaRoom;
+    }
+
     JSONObject toJSONObject() {
         return new JSONObject()
                 .put("userid", userid)
                 .put("username", username)
                 .put("discriminator", discriminator)
                 .put("isOnline", isOnline)
-                .put("lastTimeOnline", lastTimeOnline);
+                .put("lastTimeOnline", lastTimeOnline)
+                .put("socialMediaRoom", socialMediaRoom);
     }
 
 }

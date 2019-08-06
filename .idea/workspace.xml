@@ -2,19 +2,22 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a647c26b-4300-4d1d-b0a2-97da2df76572" name="Default Changelist" comment="Nightly upload">
-      <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/libraries/Maven__com_github_ipfs_java_ipfs_http_client_1_2_1.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/libraries/Maven__com_github_ipfs_java_ipfs_http_client_1_2_3.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__com_algorithmia_algorithmia_client_1_0_16.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__com_google_code_gson_gson_2_6_2.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__commons_codec_commons_codec_1_9.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__commons_io_commons_io_2_5.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__commons_logging_commons_logging_1_2.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__org_apache_httpcomponents_httpasyncclient_4_1_1.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__org_apache_httpcomponents_httpclient_4_5_1.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__org_apache_httpcomponents_httpcore_4_4_4.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/Maven__org_apache_httpcomponents_httpcore_nio_4_4_4.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/IPFS.iml" beforeDir="false" afterPath="$PROJECT_DIR$/IPFS.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Account.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Account.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/FileLoader.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/FileLoader.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Message.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Message.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/MessageType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/MessageType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Peer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Peer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Pubsub.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Pubsub.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/SocialMediaFeed.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/SocialMediaFeed.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/User.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/account/Account.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Account.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/account/Peer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Peer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/main.java" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -353,6 +356,17 @@
     <MESSAGE value="First upload." />
     <MESSAGE value="Nightly upload" />
     <option name="LAST_COMMIT_MESSAGE" value="Nightly upload" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/main/java/com/Smoke/Signals/FileLoader.java</url>
+          <line>114</line>
+          <option name="timeStamp" value="5" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="antWorkspaceConfiguration">
     <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />

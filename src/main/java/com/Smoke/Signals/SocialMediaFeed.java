@@ -6,22 +6,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 class SocialMediaFeed extends Pubsub {
-//TODO Store this roomname in the json file
     static HashMap<Long, Post> posts;
     private User yourself;
-    private boolean isPublic;
+    private final boolean isPublic;
     private static HashMap<String, Long> publicPages;
     private ArrayList<Pubsub> publicFollows;
-    private String roomName;
+    private static String roomName;
 
-    SocialMediaFeed(User yourself, String roomName, boolean isPublic) throws Exception {
-        super(yourself, roomName, true);
+    SocialMediaFeed(User yourself, boolean isPublic) throws Exception {
+        super(yourself, Account.getSocialMediaRoomName(), true);
         posts = new HashMap<>();
         this.yourself = yourself;
         this.isPublic = isPublic;
         publicPages = new HashMap<>();
         publicFollows = new ArrayList<>();
-        this.roomName = roomName;
+        roomName = Account.getSocialMediaRoomName();
     }
 
     /**
@@ -120,15 +119,4 @@ class SocialMediaFeed extends Pubsub {
     void followPublic(long publicID) throws Exception {
         publicFollows.add(new Pubsub(yourself, String.valueOf(publicID), true));
     }
-
-    /**
-     * Check for explatives and in the future nudity and stuff like that to make sure that people are not seeing stuff they dont want to see
-     *
-     * @param postToCheck the object of the post that needs to be filtered
-     */
-    private void filterPost(Post postToCheck) {
-
-    }
-
-
 }

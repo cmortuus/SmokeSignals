@@ -19,8 +19,8 @@ class User {
     private HashMap<String, Invite> inviteRooms;
     private boolean initialized;
 
-    final String alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    final int N = alphabet.length();
+    private static final String alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int N = alphabet.length();
 
     //    TODO use ipfs hash for user id and then associate that id with the username and if they want to change their username than send a message to say that
     //    TODO change this so that usernames are designated by the first line of a room and each user has their own folder of rooms
@@ -57,7 +57,8 @@ class User {
 
         // start logging broadcaster and social media receiver
         loggingChannel = new Logging(this);
-        socialMediaFeed = new SocialMediaFeed(this, generateRoomName(), false);
+        // Assumes that you want a private room
+        socialMediaFeed = new SocialMediaFeed(this, false);
         startNewInviteRoom();
 
         // reconnect to existing roomnames
@@ -166,7 +167,7 @@ class User {
         return rooms.get(roomName).isReady();
     }
 
-    private String generateRoomName(){
+    static String generateRoomName(){
         Random r = new Random();
         StringBuilder s = new StringBuilder();
         for (int i = 0; i < 1024; i++)

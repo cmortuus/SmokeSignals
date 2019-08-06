@@ -13,14 +13,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
-public class FileLoader {
+class FileLoader {
 
     private static final String ACCOUNTS_FOLDER = "accounts/";
     private static final String ACCOUNT_LOOKUP_FILE = "account_lookup.json";
 
     private static final String ROOMS_FOLDER = "rooms/";
 
-    public static synchronized Account getAccount(String username, String discriminator) throws IOException {
+    static synchronized Account getAccount(String username, String discriminator) throws IOException {
         Account account = null;
         String accountFile = null;
 
@@ -61,11 +61,12 @@ public class FileLoader {
                     account = new Account(new JSONObject(sb.toString()));
                 }
             } else throw new RuntimeException("Account save data is missing!");
-        } else saveAccount(account);
+        }
+
         return account;
     }
 
-    public static void saveAccount(Account account) throws IOException {
+    static void saveAccount(Account account) throws IOException {
         String accountFile = account.getSaveFilename();
         new File(ACCOUNTS_FOLDER).mkdir();
         File f = new File(ACCOUNTS_FOLDER+accountFile);
@@ -83,7 +84,7 @@ public class FileLoader {
      * @param newUsername (String)  new username formatted as username#discriminator
      * @throws IOException
      */
-    public static synchronized void updateAccountReference(String oldUsername, String newUsername) throws IOException {
+    static synchronized void updateAccountReference(String oldUsername, String newUsername) throws IOException {
 
         if (!isValidUserFormat(oldUsername)) throw new IllegalArgumentException("oldUsername is not formatted correctly (username#discriminator)");
         if (!isValidUserFormat(newUsername)) throw new IllegalArgumentException("newUsername is not formatted correctly (username#discriminator)");
@@ -110,7 +111,7 @@ public class FileLoader {
         }
     }
 
-    public static ArrayList<Message> loadMessages(String filename) {
+    static ArrayList<Message> loadMessages(String filename) {
         File messages_file = new File(filename);
         ArrayList<Message> messages = new ArrayList<>();
         if (!messages_file.exists()) return messages;
@@ -128,7 +129,7 @@ public class FileLoader {
         }
     }
 
-    public static void saveMessages(ArrayList<Message> messages, String filename) throws IOException {
+    static void saveMessages(ArrayList<Message> messages, String filename) throws IOException {
         File messages_file = new File(filename);
         try (PrintWriter pw = new PrintWriter(messages_file)) {
             JSONArray json = new JSONArray();

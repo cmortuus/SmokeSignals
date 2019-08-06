@@ -15,6 +15,7 @@ class Account {
     private String discriminator;
     private HashSet<String> roomnames;
     private HashMap<Long, Peer> peers;
+    private static String socialMediaRoomName;
     private transient HashMap<String, Peer> idMap;
     private static final String ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int N = ALPHABET.length();
@@ -26,6 +27,7 @@ class Account {
         roomnames = new HashSet<>();
         peers = new HashMap<>();
         idMap = new HashMap<>();
+        socialMediaRoomName = User.generateRoomName();
     }
 
     Account(String username, String discriminator) {
@@ -35,6 +37,7 @@ class Account {
         roomnames = new HashSet<>();
         peers = new HashMap<>();
         idMap = new HashMap<>();
+        socialMediaRoomName = User.generateRoomName();
     }
 
     Account(JSONObject json) {
@@ -50,6 +53,7 @@ class Account {
             Peer p = new Peer(new JSONObject(o.toString()));
             peers.put(p.getUserId(), p);
         }
+        socialMediaRoomName = json.getString("socialMediaRoom");
 //        json.getJSONArray("peers").iterator().forEachRemaining(o -> {
 //            Peer p = new Peer(new JSONObject(o.toString()));
 //            peers.put(p.getUserId(), p);
@@ -79,7 +83,7 @@ class Account {
 
     Peer getPeer(long userid) {
         if (!peers.containsKey(userid))
-            addPeer(new Peer(userid, "Unknown", "000000"));
+            addPeer(new Peer(userid, "Unknown", "000000", null));
         return peers.get(userid);
     }
 
@@ -124,6 +128,10 @@ class Account {
         return userid + ".json";
     }
 
+    static String getSocialMediaRoomName(){
+        return socialMediaRoomName;
+    }
+
     JSONObject toJSONObject() {
         JSONArray peerArr = new JSONArray();
         peers.values().forEach(p -> peerArr.put(p.toJSONObject()));
@@ -132,7 +140,8 @@ class Account {
                 .put("username", username)
                 .put("discriminator", discriminator)
                 .put("roomnames", roomnames)
-                .put("peers", peerArr);
+                .put("peers", peerArr)
+                .put("socialMediaRoom", socialMediaRoomName);
     }
 
     @Override
