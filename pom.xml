@@ -4,7 +4,7 @@
 
     <groupId>SmokeSignalsJava</groupId>
     <artifactId>SmokeSignalsJava</artifactId>
-    <version>v0.0.1</version>
+    <version>v1.0</version>
     <packaging>jar</packaging>
 
     <name>java-ipfs-http-client</name>

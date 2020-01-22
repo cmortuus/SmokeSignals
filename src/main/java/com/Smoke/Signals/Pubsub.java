@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 //TODO when getting ipfs get it by going to some normal site for china and then edit the html to add in the IPFS library and use that to pull down the code
 //TODO make public SocialMedia pages
 //TODO complete all the todo statements
+
 class Pubsub {
 
     private User yourself;
@@ -115,7 +116,6 @@ class Pubsub {
                     loadMessages();
                     printLastMessages(20);
                 }
-
                 // initiate handshake
                 new Thread(() -> {
                     List<String> lastPeers = new ArrayList<>();
@@ -598,7 +598,6 @@ class Pubsub {
      */
     void writeToPubsub(String message, MessageType type) {
         if (!ready) throw new IllegalStateException("cannot send prior to handshake");
-
         try {
             long time = System.currentTimeMillis();
             long id = message.hashCode() + time;
