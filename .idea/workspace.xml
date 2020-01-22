@@ -1,15 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="a647c26b-4300-4d1d-b0a2-97da2df76572" name="Default Changelist" comment="Nightly upload">
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="a647c26b-4300-4d1d-b0a2-97da2df76572" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Pubsub.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/Smoke/Signals/Pubsub.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -174,7 +167,7 @@
       <workItem from="1555005264887" duration="1097000" />
       <workItem from="1555012220358" duration="7320000" />
       <workItem from="1578620709244" duration="7918000" />
-      <workItem from="1579662739866" duration="574000" />
+      <workItem from="1579662739866" duration="822000" />
     </task>
     <task id="LOCAL-00001" summary="First upload.">
       <created>1554581643257</created>
@@ -323,7 +316,14 @@
       <option name="project" value="LOCAL" />
       <updated>1556736510765</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="ReadMe Update">
+      <created>1579663331448</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1579663331448</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -345,25 +345,34 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="First upload." />
     <MESSAGE value="Nightly upload" />
-    <option name="LAST_COMMIT_MESSAGE" value="Nightly upload" />
+    <MESSAGE value="ReadMe Update" />
+    <option name="LAST_COMMIT_MESSAGE" value="ReadMe Update" />
   </component>
   <component name="WindowStateProjectService">
     <state x="2721" y="1512" width="308" height="223" key="#com.intellij.ide.util.projectWizard.JdkChooserPanel.MyDialog" timestamp="1578620745578">
       <screen x="1920" y="1080" width="1920" height="1080" />
     </state>
     <state x="2721" y="1512" width="308" height="223" key="#com.intellij.ide.util.projectWizard.JdkChooserPanel.MyDialog/0.1080.1920.1080/0.0.1920.1080/1920.0.1920.1080/1920.1080.1920.1080@1920.1080.1920.1080" timestamp="1578620745578" />
+    <state x="2394" y="1216" width="962" height="814" key="CommitChangelistDialog2" timestamp="1579663331370">
+      <screen x="1920" y="1080" width="1920" height="1080" />
+    </state>
+    <state x="2394" y="1216" width="962" height="814" key="CommitChangelistDialog2/0.1080.1920.1080/0.0.1920.1080/1920.0.1920.1080/1920.1080.1920.1080@1920.1080.1920.1080" timestamp="1579663331370" />
     <state x="2363" y="1197" width="1471" height="852" key="SettingsEditor" timestamp="1578623175126">
       <screen x="1920" y="1080" width="1920" height="1080" />
     </state>
     <state x="2363" y="1197" width="1471" height="852" key="SettingsEditor/0.1080.1920.1080/0.0.1920.1080/1920.0.1920.1080/1920.1080.1920.1080@1920.1080.1920.1080" timestamp="1578623175126" />
+    <state x="2475" y="1356" width="800" height="535" key="Vcs.Push.Dialog.v2" timestamp="1579663332994">
+      <screen x="1920" y="1080" width="1920" height="1080" />
+    </state>
+    <state x="2475" y="1356" width="800" height="535" key="Vcs.Push.Dialog.v2/0.1080.1920.1080/0.0.1920.1080/1920.0.1920.1080/1920.1080.1920.1080@1920.1080.1920.1080" timestamp="1579663332994" />
     <state x="538" y="260" width="1372" height="820" key="new project wizard" timestamp="1578673560860">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
     <state x="538" y="260" width="1372" height="820" key="new project wizard/0.1080.1920.1080/0.0.1920.1080/1920.0.1920.1080/1920.1080.1920.1080@0.0.1920.1080" timestamp="1578673560860" />
-    <state x="2543" y="1319" width="672" height="678" key="search.everywhere.popup" timestamp="1578622769255">
+    <state x="2543" y="1319" width="672" height="678" key="search.everywhere.popup" timestamp="1579663559790">
       <screen x="1920" y="1080" width="1920" height="1080" />
     </state>
-    <state x="2543" y="1319" width="672" height="678" key="search.everywhere.popup/0.1080.1920.1080/0.0.1920.1080/1920.0.1920.1080/1920.1080.1920.1080@1920.1080.1920.1080" timestamp="1578622769255" />
+    <state x="2543" y="1319" width="672" height="678" key="search.everywhere.popup/0.1080.1920.1080/0.0.1920.1080/1920.0.1920.1080/1920.1080.1920.1080@1920.1080.1920.1080" timestamp="1579663559790" />
   </component>
   <component name="antWorkspaceConfiguration">
     <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />
